@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tableau de bord</title>
+  <meta name="robots" content="noindex,nofollow">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="bg-stone-100 text-stone-800">
+  <div class="max-w-5xl mx-auto px-4 py-6">
+    <h1 class="text-2xl font-semibold mb-1">Tableau de bord</h1>
+    <p id="phase" class="text-sm text-stone-500 mb-4"></p>
+    <div id="out" class="text-sm">Chargement…</div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+  (async function () {
+    const out = document.getElementById("out");
+    const key = new URLSearchParams(location.search).get("key");
+    const COLORS = { bretagne: "#2563eb", tunis: "#ea580c", both: "#7c3aed", declined: "#9ca3af" };
+
+    async function fetchData() {
+      if (!CONFIG.gasUrl) return demoData();
+      if (!key) throw new Error("Ajoutez ?key=VOTRE_CLE à l'URL (voir l'onglet Config de la Sheet).");
+      const res = await fetch(`${CONFIG.gasUrl}?admin=${encodeURIComponent(key)}`);
+      const data = await res.json();
+      if (!data.ok) throw new Error("Clé invalide.");
+      return data;
+    }
+
+    function demoData() {
+      return {
+        ok: true, phase: "rsvp", capacities: { bretagne: 80, tunis: 120 },
+        guests: [
+          { token: "a", name: "Alex Demo", vip: false, gender: "M", invit_hammam: false, invit_soiree: true },
+          { token: "b", name: "Rim Demo", vip: false, gender: "F", invit_hammam: true, invit_soiree: true },
+          { token: "c", name: "Couple VIP Demo", vip: true, gender: "F", invit_hammam: true, invit_soiree: true },
+          { token: "d", name: "Sans Réponse", vip: false, gender: "M", invit_hammam: false, invit_soiree: false }
+        ],
+        responses: [
+          { token: "a", phase: "rsvp", names: "Alex Demo", bretagne: "yes", tunisia: "no", party_size: 2, city: "Rennes", country: "France", geo_lat: 48.11, geo_lng: -1.68, hammam: "", soiree: "", early_arrival: "" },
+          { token: "b", phase: "rsvp", names: "Rim Demo", bretagne: "no", tunisia: "yes", party_size: 1, city: "Tunis", country: "Tunisie", geo_lat: 36.8, geo_lng: 10.18, hammam: "yes", soiree: "yes", early_arrival: "early" },
+          { token: "c", phase: "rsvp", names: "Couple VIP Demo", bretagne: "yes", tunisia: "yes", party_size: 2, city: "Berlin", country: "Germany", geo_lat: 52.52, geo_lng: 13.40, hammam: "no", soiree: "yes", early_arrival: "early" }
+        ]
+      };
+    }
+
+    function choiceOf(r) {
+      if (r.bretagne === "yes" && r.tunisia === "yes") return "both";
+      if (r.bretagne === "yes") return "bretagne";
+      if (r.tunisia === "yes") return "tunis";
+      return "declined";
+    }
+
+    try {
+      const data = await fetchData();
+      const phase = data.phase;
+      document.getElementById("phase").textContent =
+        `Phase actuelle : ${phase === "poll" ? "sondage (non contraignant)" : "RSVP définitif"}`;
+      const guestBy = {}; data.guests.forEach(g => guestBy[String(g.token).trim()] = g);
+      const resp = data.responses.filter(r => r.phase === phase);
+      const isYes = v => v === "yes";
+      const truthy = v => v === true || String(v).toUpperCase() === "TRUE";
+
+      const seats = { bretagne: 0, tunis: 0 };
+      resp.forEach(r => {
+        const n = Number(r.party_size) || 0;
+        if (isYes(r.bretagne)) seats.bretagne += n;
+        if (isYes(r.tunisia)) seats.tunis += n;
+      });
+
+      const answeredTokens = new Set(resp.map(r => String(r.token).trim()));
+      const noAnswer = data.guests.filter(g => !answeredTokens.has(String(g.token).trim()));
+
+      const sub = {
+        hammamM: [], hammamF: [], soiree: [], mariageTn: []
+      };
+      resp.forEach(r => {
+        const g = guestBy[String(r.token).trim()] || {};
+        if (isYes(r.tunisia)) sub.mariageTn.push(r);
+        if (isYes(r.hammam)) (String(g.gender).toUpperCase() === "F" ? sub.hammamF : sub.hammamM).push(r);
+        if (isYes(r.soiree)) sub.soiree.push(r);
+      });
+      const people = list => list.reduce((s, r) => s + (Number(r.party_size) || 0), 0);
+
+      const card = (label, value, extra) => `
+        <div class="bg-white rounded-xl shadow p-4">
+          <p class="text-stone-500 text-xs uppercase tracking-wide">${label}</p>
+          <p class="text-2xl font-semibold">${value}</p>
+          ${extra ? `<p class="text-xs text-stone-500">${extra}</p>` : ""}
+        </div>`;
+
+      const nameList = list => list.length
+        ? list.map(r => `<li>${r.names || r.token} <span class="text-stone-400">(${r.party_size})</span></li>`).join("")
+        : `<li class="text-stone-400">personne pour l'instant</li>`;
+
+      out.innerHTML = `
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          ${card("Bretagne", `${seats.bretagne} / ${data.capacities.bretagne}`, "personnes / capacité")}
+          ${card("Tunisie", `${seats.tunis} / ${data.capacities.tunis}`, "personnes / capacité")}
+          ${card("Réponses", `${resp.length} / ${data.guests.length}`, "invitations répondues")}
+          ${card("Sans réponse", noAnswer.length)}
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-4 mb-6">
+          <div id="map" class="w-full rounded-lg" style="height:380px"></div>
+          <p class="text-xs text-stone-500 mt-2">
+            <span style="color:${COLORS.bretagne}">●</span> Bretagne&nbsp;
+            <span style="color:${COLORS.tunis}">●</span> Tunisie&nbsp;
+            <span style="color:${COLORS.both}">●</span> Les deux&nbsp;
+            <span style="color:${COLORS.declined}">●</span> Ne vient pas
+            — pins manquants : lancer <code>geocodeResponses()</code> dans Apps Script.
+          </p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4 mb-6">
+          <div class="bg-white rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-2">Hammam hommes (${people(sub.hammamM)} pers.)</h3>
+            <ul class="list-disc list-inside">${nameList(sub.hammamM)}</ul>
+          </div>
+          <div class="bg-white rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-2">Hammam femmes (${people(sub.hammamF)} pers.)</h3>
+            <ul class="list-disc list-inside">${nameList(sub.hammamF)}</ul>
+          </div>
+          <div class="bg-white rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-2">Soirée de la femme (${people(sub.soiree)} pers.)</h3>
+            <ul class="list-disc list-inside">${nameList(sub.soiree)}</ul>
+          </div>
+          <div class="bg-white rounded-xl shadow p-4">
+            <h3 class="font-semibold mb-2">Mariage Tunisie (${people(sub.mariageTn)} pers.)</h3>
+            <ul class="list-disc list-inside">${nameList(sub.mariageTn)}</ul>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-4 mb-6 overflow-x-auto">
+          <h3 class="font-semibold mb-2">Toutes les réponses (${phase})</h3>
+          <table class="w-full text-left">
+            <thead><tr class="border-b text-stone-500">
+              <th class="py-1 pr-3">Invité</th><th class="pr-3">Choix</th><th class="pr-3">Adultes</th>
+              <th class="pr-3">Arrivée TN</th><th class="pr-3">Hammam</th><th class="pr-3">Soirée</th>
+              <th class="pr-3">Ville</th><th>Note</th>
+            </tr></thead>
+            <tbody>
+              ${resp.map(r => `<tr class="border-b border-stone-100">
+                <td class="py-1 pr-3">${r.names || r.token}</td>
+                <td class="pr-3" style="color:${COLORS[choiceOf(r)]}">${{ bretagne: "Bretagne", tunis: "Tunisie", both: "Les deux", declined: "Ne vient pas" }[choiceOf(r)]}</td>
+                <td class="pr-3">${r.party_size}</td>
+                <td class="pr-3">${r.early_arrival === "early" ? "dès le 9" : r.early_arrival === "weddingOnly" ? "le 12" : ""}</td>
+                <td class="pr-3">${r.hammam || ""}</td><td class="pr-3">${r.soiree || ""}</td>
+                <td class="pr-3">${r.city || ""}, ${r.country || ""}</td>
+                <td class="text-stone-500">${r.note || ""}</td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-4">
+          <h3 class="font-semibold mb-2">Sans réponse (${noAnswer.length})</h3>
+          <ul class="list-disc list-inside">
+            ${noAnswer.map(g => `<li>${g.name} ${truthy(g.vip) ? "⭐" : ""}</li>`).join("") || "<li class='text-stone-400'>tout le monde a répondu 🎉</li>"}
+          </ul>
+        </div>`;
+
+      // map
+      const map = L.map("map").setView([44, 5], 4);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        { attribution: "© OpenStreetMap" }).addTo(map);
+      const pts = [];
+      resp.forEach(r => {
+        if (!r.geo_lat || !r.geo_lng) return;
+        const c = COLORS[choiceOf(r)];
+        L.circleMarker([Number(r.geo_lat), Number(r.geo_lng)],
+          { radius: 8, color: c, fillColor: c, fillOpacity: .8 })
+          .bindPopup(`<strong>${r.names || r.token}</strong><br>${r.city || ""} — ${r.party_size} pers.`)
+          .addTo(map);
+        pts.push([Number(r.geo_lat), Number(r.geo_lng)]);
+      });
+      if (pts.length) map.fitBounds(pts, { padding: [30, 30] });
+    } catch (e) {
+      out.innerHTML = `<p class="text-red-600">${e.message}</p>`;
+    }
+  })();
+  </script>
+</body>
+</html>
