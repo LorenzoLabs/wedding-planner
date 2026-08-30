@@ -23,13 +23,27 @@ through a free Google Apps Script acting as the API. No server, no cost.
    - `tunis_place_fr`, `tunis_place_en`
    - `tunis_days_fr`, `tunis_days_en` — program lines separated by `|`,
      e.g. "Premiers jours : traditions|Veille : soirée de la femme|Dernier jour : le mariage"
-   - `timeline_fr`, `timeline_en` (optional) — the "our story" polaroid timeline.
-     Items separated by `||`, fields by `~` (date ~ text ~ photo URL):
-     `2019~Notre rencontre~https://…||2026~Fiançailles~||…`
-     An item without photo shows a botanical ornament instead. Host photos on
-     Google Drive (share "anyone with the link", use
-     `https://drive.google.com/uc?export=view&id=FILE_ID`) so they stay out of
-     the public repo.
+   The "our story" timeline is edited in its own **Timeline** tab (run
+   `setupTimelineTab` once to create it) — see below. The legacy Config keys
+   `timeline_fr` / `timeline_en` still work as a fallback if the tab is empty.
+
+## 6. The Timeline tab (photos + captions, editable by anyone)
+
+Run **`setupTimelineTab`** in Apps Script once. It adds a **Timeline** tab with
+one row per moment and these columns:
+
+| column | what |
+|---|---|
+| `date` | e.g. "16 mars 2025" (free text, shown on the polaroid) |
+| `description_fr` | the caption in French |
+| `description_en` | the caption in English (leave empty to reuse the French one) |
+| `photo` | paste the normal Google Drive **share link** of the photo |
+
+Add a row, done — the site updates within a minute. A row without a photo shows a
+botanical ornament instead. For photos: upload to Google Drive, right-click →
+Share → "Anyone with the link", Copy link, paste it in the `photo` column. The
+backend turns that share link into a displayable image automatically, so the
+photos never live in the public repo.
 
 ## 2. Deploy the API
 

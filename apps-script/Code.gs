@@ -49,6 +49,21 @@ function ensureTab(ss, name, headers) {
   return sh;
 }
 
+// Create (once) the "Timeline" tab Wafa & Lorenzo edit like a board:
+// one row per moment — date, description FR, description EN, photo (Drive link).
+function setupTimelineTab() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ensureTab(ss, "Timeline", TIMELINE_HEADERS);
+  if (sh.getLastRow() < 2) {
+    sh.getRange(2, 1, 2, TIMELINE_HEADERS.length).setValues([
+      ["16 mars 2025", "Notre rencontre à Berlin", "We met in Berlin", ""],
+      ["12 juin 2027", "Notre mariage", "Our wedding", ""]
+    ]);
+  }
+  sh.setColumnWidth(2, 260); sh.setColumnWidth(3, 260); sh.setColumnWidth(4, 320);
+  sh.getRange("A1:D1").setBackground("#f0ebe0");
+}
+
 // Simple trigger: whenever someone edits the Guests tab (e.g. adds a guest),
 // missing tokens are filled automatically — no manual step needed.
 function onEdit(e) {
@@ -101,13 +116,47 @@ function geocodeResponses() {
   }
 }
 
+var TIMELINE_HEADERS = ["date", "description_fr", "description_en", "photo"];
+
 // ---------- helpers ----------
+// Turn any Google Drive share link into a URL the browser can display as an image.
+// Pass non-Drive URLs through unchanged.
+function driveImg(url) {
+  url = String(url || "").trim();
+  if (!url) return "";
+  var m = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?[^]*id=)([\w-]{20,})/);
+  if (!m) m = url.match(/[?&]id=([\w-]{20,})/);
+  return m ? "https://lh3.googleusercontent.com/d/" + m[1] : url;
+}
+
+// Legacy single-cell format kept as a fallback: date~text~photo||date~text~photo
 function tl(s) {
   if (!s) return null;
   return String(s).split("||").map(function (item) {
     var f = item.split("~");
-    return { date: (f[0] || "").trim(), text: (f[1] || "").trim(), img: (f[2] || "").trim() };
+    return { date: (f[0] || "").trim(), text: (f[1] || "").trim(), img: driveImg(f[2]) };
   });
+}
+
+// Preferred source: a dedicated "Timeline" tab (one row per moment).
+// Returns { fr: [...], en: [...] } or null if the tab is missing/empty.
+function readTimeline() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Timeline");
+  if (!sh) return null;
+  var n = sh.getLastRow() - 1;
+  if (n < 1) return null;
+  var rows = sh.getRange(2, 1, n, TIMELINE_HEADERS.length).getValues();
+  var fr = [], en = [];
+  rows.forEach(function (r) {
+    var date = String(r[0] || "").trim();
+    var dFr = String(r[1] || "").trim();
+    var dEn = String(r[2] || "").trim() || dFr;
+    var img = driveImg(r[3]);
+    if (!date && !dFr && !img) return; // skip blank rows
+    fr.push({ date: date, text: dFr, img: img });
+    en.push({ date: date, text: dEn, img: img });
+  });
+  return fr.length ? { fr: fr, en: en } : null;
 }
 
 function json(obj) {
@@ -195,9 +244,9 @@ function doGet(e) {
           }
         },
         tunisDays: { fr: days(cfg.tunis_days_fr), en: days(cfg.tunis_days_en) },
-        // timeline_fr / timeline_en: items separated by "||", fields by "~":
-        // "2019~Notre rencontre~https://photo-url||2026~Fiançailles~"
-        timeline: { fr: tl(cfg.timeline_fr), en: tl(cfg.timeline_en) }
+        // Timeline: prefer the dedicated "Timeline" tab; fall back to the
+        // legacy single-cell Config keys timeline_fr / timeline_en.
+        timeline: readTimeline() || { fr: tl(cfg.timeline_fr), en: tl(cfg.timeline_en) }
       }
     });
   }
