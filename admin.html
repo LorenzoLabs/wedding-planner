@@ -61,6 +61,8 @@
       const phase = data.phase;
       document.getElementById("phase").textContent =
         `Phase actuelle : ${phase === "poll" ? "sondage (non contraignant)" : "RSVP définitif"}`;
+      // ignore phantom rows (empty name) created by whole-column sheet formulas
+      data.guests = data.guests.filter(g => String(g.name || "").trim());
       const guestBy = {}; data.guests.forEach(g => guestBy[String(g.token).trim()] = g);
       const resp = data.responses.filter(r => r.phase === phase);
       const isYes = v => v === "yes";
