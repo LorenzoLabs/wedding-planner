@@ -126,8 +126,8 @@
   }
 
   function demoGet(tok) {
-    if (tok === "demo-vip") return { ok: true, phase: "rsvp", placesLeft: { bretagne: 12, tunis: 3 }, editable: true, response: null, guest: { name: "Ava & Sam Demo", vip: true, invitHammam: true, invitSoiree: true, plusOne: true } };
-    if (tok === "demo") return { ok: true, phase: "poll", placesLeft: null, editable: true, response: null, guest: { name: "Alex Demo", vip: false, invitHammam: false, invitSoiree: true, plusOne: false } };
+    if (tok === "demo-vip") return { ok: true, phase: "rsvp", placesLeft: { bretagne: 12, tunis: 3 }, editable: true, response: null, guest: { name: "Ava & Sam Demo", vip: true, invitHammam: true, invitSoiree: true, plusOne: false, seats: 2 } };
+    if (tok === "demo") return { ok: true, phase: "poll", placesLeft: null, editable: true, response: null, guest: { name: "Alex Demo", vip: false, invitHammam: false, invitSoiree: true, plusOne: true, seats: 1 } };
     return { ok: false, error: "bad_token" };
   }
 
@@ -182,12 +182,14 @@
     const a = state.answers;
     const title = t("step2Title") ? `<h3 class="text-lg font-semibold mb-3">${esc(t("step2Title"))}</h3>` : "";
     const countries = (CONFIG.countries && CONFIG.countries[state.lang]) || [];
+    const seats = state.guest.seats || 1;
+    const seatsInfo = seats >= 2 ? `<p class="text-sm mb-3 bg-stone-100 rounded-lg p-2">${esc(t("seatsInfo").replace("{n}", seats))}</p>` : "";
     const plusOne = state.guest.plusOne ? `
       <label class="flex items-center gap-2 mb-4 cursor-pointer">
         <input id="f-plusone" type="checkbox" class="w-4 h-4" ${a.plusOne ? "checked" : ""}>
         <span>${esc(t("plusOneLabel"))}</span>
       </label>` : "";
-    return `${title}${plusOne}
+    return `${title}${seatsInfo}${plusOne}
       <div class="grid grid-cols-2 gap-3">
         <div><label class="block text-sm mb-1">${esc(t("cityLabel"))}</label>
           <input id="f-city" class="w-full border border-stone-300 rounded-lg p-2" value="${esc(a.city)}"></div>
@@ -283,7 +285,8 @@
     } else if (r.tunisia === "maybe") parts.push(`${evLabel("tunis")} (${t("maybeShort")})`);
     if (!parts.length) parts.push(t("choiceDecline"));
     const guests = parts.join(" + ");
-    return (r.partySize || 1) >= 2 ? `${guests} · +1` : guests;
+    const n = r.partySize || 1;
+    return n >= 2 ? `${guests} · ${n} ${t("peopleShort")}` : guests;
   }
 
   // ---------- step bindings & validation ----------
@@ -318,7 +321,7 @@
     if (state.step === 2) {
       const po = document.getElementById("f-plusone");
       a.plusOne = state.guest.plusOne && po ? po.checked : false;
-      a.partySize = a.plusOne ? 2 : 1;
+      a.partySize = (state.guest.seats || 1) + (a.plusOne ? 1 : 0);
       a.city = document.getElementById("f-city").value.trim();
       a.country = document.getElementById("f-country").value.trim();
       if (!a.city || !a.country) return err(t("required"));
@@ -340,7 +343,7 @@
   function payload() {
     const a = state.answers;
     return {
-      token, names: state.guest.name, partySize: a.partySize, city: a.city, country: a.country,
+      token, names: state.guest.name, partySize: a.partySize, plusOne: !!a.plusOne, city: a.city, country: a.country,
       bretagne: a.bretagne || "no", tunisia: a.tunisia || "no",
       earlyArrival: a.tunisia === "yes" ? a.earlyArrival : "",
       hammam: a.tunisia === "yes" && state.guest.invitHammam ? a.hammam : "",
@@ -369,7 +372,7 @@
   // ---------- boot ----------
   function prefill(r) {
     const a = state.answers;
-    a.partySize = r.partySize || 1; a.plusOne = (r.partySize || 1) >= 2; a.city = r.city || ""; a.country = r.country || "";
+    a.partySize = r.partySize || 1; a.plusOne = (r.partySize || 1) > (state.guest.seats || 1); a.city = r.city || ""; a.country = r.country || "";
     a.bretagne = r.bretagne || ""; a.tunisia = r.tunisia || "";
     if (!state.guest.vip) a._single = r.bretagne === "yes" ? "bretagne" : r.tunisia === "yes" ? "tunis" : (r.bretagne === "no" && r.tunisia === "no" ? "decline" : "");
     a.earlyArrival = r.earlyArrival || ""; a.hammam = r.hammam || ""; a.soiree = r.soiree || ""; a.note = r.note || "";

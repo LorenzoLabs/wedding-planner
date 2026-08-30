@@ -14,7 +14,7 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country", "importance", "lang", "plus_one"];
+var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country", "importance", "lang", "plus_one", "places"];
 var RESP_HEADERS = ["token", "timestamp", "phase", "names", "bretagne", "tunisia", "party_size",
   "early_arrival", "hammam", "soiree", "city", "country", "note", "editable_until", "geo_lat", "geo_lng"];
 
@@ -36,9 +36,9 @@ function setupSheet() {
   var g = ss.getSheetByName("Guests");
   if (g.getLastRow() < 2) {
     g.getRange(2, 1, 3, GUEST_HEADERS.length).setValues([
-      ["test-reg-fr", "Testeur France", "", false, "M", false, false, "Rennes", "France", "", "", false],
-      ["test-reg-tn", "Testeuse Tunisie", "", false, "F", true, true, "Tunis", "Tunisie", "", "", true],
-      ["test-vip", "Couple VIP", "", true, "F", true, true, "Berlin", "Germany", "", "en", true]
+      ["test-reg-fr", "Testeur France", "", false, "M", false, false, "Rennes", "France", "", "", false, 1],
+      ["test-reg-tn", "Testeuse Tunisie", "", false, "F", true, true, "Tunis", "Tunisie", "", "", true, 1],
+      ["test-vip", "Couple VIP", "", true, "F", true, true, "Berlin", "Germany", "", "en", true, 2]
     ]);
   }
 }
@@ -371,7 +371,8 @@ function doGet(e) {
       invitHammam: guest.invit_hammam === true || String(guest.invit_hammam).toUpperCase() === "TRUE",
       invitSoiree: guest.invit_soiree === true || String(guest.invit_soiree).toUpperCase() === "TRUE",
       lang: String(guest.lang || "").toLowerCase() === "en" ? "en" : "fr",
-      plusOne: guest.plus_one === true || String(guest.plus_one).toUpperCase() === "TRUE"
+      plusOne: guest.plus_one === true || String(guest.plus_one).toUpperCase() === "TRUE",
+      seats: Math.max(1, parseInt(guest.places, 10) || 1)
     },
     response: respToClient(existing),
     editable: phase !== "rsvp" || !existing || new Date() <= new Date(existing.editable_until)
@@ -399,9 +400,11 @@ function doPost(e) {
   var tunisia = isVip ? ynm(body.tunisia) : yn(body.tunisia);
   if (!isVip && bretagne === "yes" && tunisia === "yes") return json({ ok: false, error: "not_vip" });
 
-  // party size is 1, or 2 when this guest is allowed a +1 and brings one
+  // Base party size comes from the sheet ("places", e.g. 2 for a couple); an
+  // allowed +1 adds one more only if the guest ticked the box.
   var hasPlusOne = guest.plus_one === true || String(guest.plus_one).toUpperCase() === "TRUE";
-  var partySize = Math.max(1, Math.min(hasPlusOne ? 2 : 1, parseInt(body.partySize, 10) || 1));
+  var seats = Math.max(1, parseInt(guest.places, 10) || 1);
+  var partySize = Math.max(1, Math.min(12, seats + (body.plusOne === true && hasPlusOne ? 1 : 0)));
   var earlyArrival = tunisia === "yes" && ["early", "weddingOnly"].indexOf(body.earlyArrival) >= 0 ? body.earlyArrival : "";
   var hammam = tunisia === "yes" && hasHammam ? yn(body.hammam) : "";
   var soiree = tunisia === "yes" && hasSoiree ? yn(body.soiree) : "";

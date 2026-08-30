@@ -92,8 +92,12 @@ and `?g=demo-vip` (VIP) work with fake data — handy to preview the design.
      the form ignores it, the dashboard shows it.
    - `lang` → per-guest site language: empty or `fr` = French, `en` = English.
      The guest can still switch manually on the page.
-   - `plus_one` TRUE/FALSE → whether this guest may bring a +1. Only guests with
-     TRUE see the "+1" checkbox; nobody can add an unlimited number of people.
+   - `plus_one` TRUE/FALSE → whether this guest may bring an optional +1. Only
+     guests with TRUE see the "+1" checkbox; nobody can add an unlimited number.
+   - `places` → base party size for this invitation (default 1). Set **2** for a
+     couple, **3+** for a family — they're counted automatically, no checkbox.
+     Name the row for the whole party (e.g. "Amine & Sana"). A `plus_one` on top
+     adds one more.
 2. Leave `token` empty, then run **`generateTokens`** in Apps Script.
 3. Each guest's personal link is `https://<user>.github.io/wedding-planner/?g=<token>`.
    Message templates in [`templates/messages.md`](templates/messages.md).
