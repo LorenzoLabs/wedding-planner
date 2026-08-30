@@ -142,6 +142,15 @@ function ytId(url) {
   return m ? m[1] : "";
 }
 
+// The sort cell may come back as a real Date (Sheets auto-parses "2027-06-12").
+// Normalise any value to a comparable YYYY-MM-DD string.
+function normSort(v) {
+  if (Object.prototype.toString.call(v) === "[object Date]" && !isNaN(v)) {
+    return v.getFullYear() + "-" + ("0" + (v.getMonth() + 1)).slice(-2) + "-" + ("0" + v.getDate()).slice(-2);
+  }
+  return String(v || "").trim();
+}
+
 // Parse a free-text date into a sortable YYYY-MM-DD string (best effort).
 function toSortDate(s) {
   s = String(s || "").trim();
@@ -194,7 +203,7 @@ function readTimeline() {
     var media = parseMedia(r[5]);
     var descFr = String(r[3] || "").trim();
     if (!dFr && !descFr && !media.length) return;
-    var sort = String(r[0] || "").trim() || toSortDate(dFr);
+    var sort = normSort(r[0]) || toSortDate(dFr);
     items.push({ sort: sort, dateFr: dFr, dateEn: String(r[2] || "").trim() || dFr, descFr: descFr, descEn: String(r[4] || "").trim() || descFr, media: media });
   });
   items.sort(function (a, b) { return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0; });
@@ -460,7 +469,7 @@ function readTimelineRows() {
     var dFr = String(r[1] || "").trim(), descFr = String(r[3] || "").trim(), media = parseMedia(r[5]);
     if (!dFr && !descFr && !media.length) return;
     out.push({
-      row: i + 2, sort: String(r[0] || "").trim() || toSortDate(dFr),
+      row: i + 2, sort: normSort(r[0]) || toSortDate(dFr),
       dateFr: dFr, dateEn: String(r[2] || "").trim(), descFr: descFr, descEn: String(r[4] || "").trim(), media: media
     });
   });
