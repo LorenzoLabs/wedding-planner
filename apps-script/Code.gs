@@ -49,6 +49,15 @@ function ensureTab(ss, name, headers) {
   return sh;
 }
 
+// Simple trigger: whenever someone edits the Guests tab (e.g. adds a guest),
+// missing tokens are filled automatically — no manual step needed.
+function onEdit(e) {
+  try {
+    if (!e || !e.range || e.range.getSheet().getName() !== "Guests") return;
+    generateTokens();
+  } catch (err) { /* never block the edit */ }
+}
+
 // Fill a random short token for every guest row that has none.
 function generateTokens() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Guests");

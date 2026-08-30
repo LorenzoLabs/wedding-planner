@@ -346,9 +346,22 @@
   }
 
   async function boot() {
+    // Real site texts come from the API (privacy: none in this public repo).
+    // Cache them so returning visitors render instantly; on first visit hide
+    // the placeholder names/dates until the fetch lands (4s fallback).
+    let siteLoaded = !CONFIG.gasUrl;
+    try {
+      const cached = localStorage.getItem("siteCfg");
+      if (cached) { applySite(JSON.parse(cached)); siteLoaded = true; }
+    } catch (e) { /* storage unavailable */ }
+    document.body.classList.toggle("site-pending", !siteLoaded);
     renderStatic();
+    const reveal = () => { document.body.classList.remove("site-pending"); };
+    setTimeout(reveal, 4000);
     apiSite().then(site => {
       applySite(site);
+      try { if (site) localStorage.setItem("siteCfg", JSON.stringify(site)); } catch (e) {}
+      reveal();
       renderStatic();
       if (state.step === 1 || !token) render();
     });

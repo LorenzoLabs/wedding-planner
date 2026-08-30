@@ -32,6 +32,9 @@
     .rules-pill { border: 1px solid var(--line); background: var(--card); border-radius: 9999px; font-size: .8rem; letter-spacing: .04em; }
     .lang-btn { border: 1px solid var(--line); border-radius: 9999px; padding: .2rem .7rem; font-size: .75rem; letter-spacing: .12em; }
     .lang-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    /* while the real site texts load, show nothing instead of demo placeholders */
+    #couple, .event-title, .event-place { transition: opacity .4s ease; }
+    body.site-pending #couple, body.site-pending .event-title, body.site-pending .event-place { opacity: 0; }
     ul.days { list-style: none; padding: 0; }
     ul.days li { padding-left: 1.1rem; position: relative; }
     ul.days li::before { content: "·"; color: var(--gold); position: absolute; left: 0; font-weight: 700; }
@@ -123,13 +126,13 @@
         <div class="card-soft p-6">
           <p class="overline-sm mb-2" style="color: var(--bretagne)"><span id="t-bretagneTitle"></span></p>
           <p class="event-title"><span id="ev-bretagne-date" class="event-date"></span></p>
-          <p class="text-sm mt-1" style="color: var(--muted)"><span id="ev-bretagne-place"></span></p>
+          <p class="text-sm mt-1 event-place" style="color: var(--muted)"><span id="ev-bretagne-place"></span></p>
           <p id="t-bretagneDesc" class="text-sm mt-3"></p>
         </div>
         <div class="card-soft p-6">
           <p class="overline-sm mb-2" style="color: var(--tunis)"><span id="t-tunisTitle"></span></p>
           <p class="event-title"><span id="ev-tunis-date" class="event-date"></span></p>
-          <p class="text-sm mt-1" style="color: var(--muted)"><span id="ev-tunis-place"></span></p>
+          <p class="text-sm mt-1 event-place" style="color: var(--muted)"><span id="ev-tunis-place"></span></p>
           <p id="t-tunisDesc" class="text-sm mt-3"></p>
           <ul id="t-tunisDays" class="days text-sm mt-3 space-y-1" style="color: var(--muted)"></ul>
         </div>
