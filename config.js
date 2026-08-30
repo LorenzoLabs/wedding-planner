@@ -17,6 +17,12 @@ const CONFIG = {
   coupleNames: "Wafa & Lorenzo",
   defaultLang: "fr",             // "fr" or "en"
 
+  // Countries offered in the RSVP dropdown (value kept as the label).
+  countries: {
+    fr: ["Allemagne", "Tunisie", "France", "Royaume-Uni", "Hongrie", "Espagne"],
+    en: ["Germany", "Tunisia", "France", "United Kingdom", "Hungary", "Spain"]
+  },
+
   // The two weddings. Keys "bretagne" / "tunis" are used internally;
   // real dates/places come from the Sheet (Config: bretagne_date_fr, …).
   events: {
@@ -70,11 +76,11 @@ const CONFIG = {
       hello: "Bonjour",
       pollBanner: "Première étape : dites-nous où vous iriez. Ce n'est pas encore la réponse définitive — elle nous aide à réserver.",
       rsvpBanner: "C'est la vraie réponse cette fois : elle est définitive 24 h après envoi.",
-      step2Title: "Qui vient ?",
-      namesLabel: "Prénoms et noms des personnes présentes",
-      partySizeLabel: "Nombre d'adultes",
+      step2Title: "",
+      plusOneLabel: "Je viens accompagné(e) (+1)",
       cityLabel: "Votre ville",
       countryLabel: "Votre pays",
+      countryPlaceholder: "Choisir…",
       step3Title: "Votre choix",
       choiceQuestionPoll: "Où iriez-vous ?",
       choiceQuestionRsvp: "Où venez-vous ?",
@@ -128,11 +134,11 @@ const CONFIG = {
       hello: "Hello",
       pollBanner: "First step: tell us where you would go. Not binding yet — it helps us book.",
       rsvpBanner: "This is the real answer: it becomes final 24h after you send it.",
-      step2Title: "Who's coming?",
-      namesLabel: "First and last names of attendees",
-      partySizeLabel: "Number of adults",
+      step2Title: "",
+      plusOneLabel: "I'm bringing a guest (+1)",
       cityLabel: "Your city",
       countryLabel: "Your country",
+      countryPlaceholder: "Choose…",
       step3Title: "Your choice",
       choiceQuestionPoll: "Where would you go?",
       choiceQuestionRsvp: "Where are you coming?",

@@ -63,6 +63,8 @@ and `?g=demo-vip` (VIP) work with fake data — handy to preview the design.
      the form ignores it, the dashboard shows it.
    - `lang` → per-guest site language: empty or `fr` = French, `en` = English.
      The guest can still switch manually on the page.
+   - `plus_one` TRUE/FALSE → whether this guest may bring a +1. Only guests with
+     TRUE see the "+1" checkbox; nobody can add an unlimited number of people.
 2. Leave `token` empty, then run **`generateTokens`** in Apps Script.
 3. Each guest's personal link is `https://<user>.github.io/wedding-planner/?g=<token>`.
    Message templates in [`templates/messages.md`](templates/messages.md).

@@ -16,7 +16,7 @@
     placesLeft: null, // {bretagne, tunis} or null
     existing: null,   // previous response or null
     editable: true,
-    answers: { names: "", partySize: 1, city: "", country: "", bretagne: "", tunisia: "", earlyArrival: "", hammam: "", soiree: "", note: "" }
+    answers: { plusOne: false, partySize: 1, city: "", country: "", bretagne: "", tunisia: "", earlyArrival: "", hammam: "", soiree: "", note: "" }
   };
 
   const t = (k) => CONFIG.texts[state.lang][k];
@@ -105,8 +105,8 @@
   }
 
   function demoGet(tok) {
-    if (tok === "demo-vip") return { ok: true, phase: "rsvp", placesLeft: { bretagne: 12, tunis: 3 }, editable: true, response: null, guest: { name: "Ava & Sam Demo", vip: true, invitHammam: true, invitSoiree: true } };
-    if (tok === "demo") return { ok: true, phase: "poll", placesLeft: null, editable: true, response: null, guest: { name: "Alex Demo", vip: false, invitHammam: false, invitSoiree: true } };
+    if (tok === "demo-vip") return { ok: true, phase: "rsvp", placesLeft: { bretagne: 12, tunis: 3 }, editable: true, response: null, guest: { name: "Ava & Sam Demo", vip: true, invitHammam: true, invitSoiree: true, plusOne: true } };
+    if (tok === "demo") return { ok: true, phase: "poll", placesLeft: null, editable: true, response: null, guest: { name: "Alex Demo", vip: false, invitHammam: false, invitSoiree: true, plusOne: false } };
     return { ok: false, error: "bad_token" };
   }
 
@@ -159,16 +159,22 @@
 
   function stepBasics() {
     const a = state.answers;
-    return `<h3 class="text-lg font-semibold mb-3">${esc(t("step2Title"))}</h3>
-      <label class="block text-sm mb-1">${esc(t("namesLabel"))}</label>
-      <input id="f-names" class="w-full border border-stone-300 rounded-lg p-2 mb-3" value="${esc(a.names || state.guest.name)}">
-      <label class="block text-sm mb-1">${esc(t("partySizeLabel"))}</label>
-      <input id="f-party" type="number" min="1" max="10" class="w-24 border border-stone-300 rounded-lg p-2 mb-3" value="${esc(a.partySize)}">
+    const title = t("step2Title") ? `<h3 class="text-lg font-semibold mb-3">${esc(t("step2Title"))}</h3>` : "";
+    const countries = (CONFIG.countries && CONFIG.countries[state.lang]) || [];
+    const plusOne = state.guest.plusOne ? `
+      <label class="flex items-center gap-2 mb-4 cursor-pointer">
+        <input id="f-plusone" type="checkbox" class="w-4 h-4" ${a.plusOne ? "checked" : ""}>
+        <span>${esc(t("plusOneLabel"))}</span>
+      </label>` : "";
+    return `${title}${plusOne}
       <div class="grid grid-cols-2 gap-3">
         <div><label class="block text-sm mb-1">${esc(t("cityLabel"))}</label>
           <input id="f-city" class="w-full border border-stone-300 rounded-lg p-2" value="${esc(a.city)}"></div>
         <div><label class="block text-sm mb-1">${esc(t("countryLabel"))}</label>
-          <input id="f-country" class="w-full border border-stone-300 rounded-lg p-2" value="${esc(a.country)}"></div>
+          <select id="f-country" class="w-full border border-stone-300 rounded-lg p-2 bg-white">
+            <option value="">${esc(t("countryPlaceholder"))}</option>
+            ${countries.map(c => `<option value="${esc(c)}" ${a.country === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
+          </select></div>
       </div>
       <p id="f-err" class="text-sm text-red-600 mt-2 hidden"></p>
       ${navButtons(1)}`;
@@ -253,8 +259,8 @@
       parts.push(s);
     }
     if (!parts.length) parts.push(t("choiceDecline"));
-    const psLabel = state.lang === "fr" ? "adulte(s)" : "adult(s)";
-    return `${parts.join(" + ")} — ${r.partySize} ${psLabel}`;
+    const guests = parts.join(" + ");
+    return (r.partySize || 1) >= 2 ? `${guests} · +1` : guests;
   }
 
   // ---------- step bindings & validation ----------
@@ -287,11 +293,12 @@
   function onNext() {
     const a = state.answers;
     if (state.step === 2) {
-      a.names = document.getElementById("f-names").value.trim();
-      a.partySize = Math.max(1, parseInt(document.getElementById("f-party").value, 10) || 0);
+      const po = document.getElementById("f-plusone");
+      a.plusOne = state.guest.plusOne && po ? po.checked : false;
+      a.partySize = a.plusOne ? 2 : 1;
       a.city = document.getElementById("f-city").value.trim();
       a.country = document.getElementById("f-country").value.trim();
-      if (!a.names || !a.city || !a.country) return err(t("required"));
+      if (!a.city || !a.country) return err(t("required"));
       return go(3);
     }
     if (state.step === 3) {
@@ -310,7 +317,7 @@
   function payload() {
     const a = state.answers;
     return {
-      token, names: a.names, partySize: a.partySize, city: a.city, country: a.country,
+      token, names: state.guest.name, partySize: a.partySize, city: a.city, country: a.country,
       bretagne: a.bretagne || "no", tunisia: a.tunisia || "no",
       earlyArrival: a.tunisia === "yes" ? a.earlyArrival : "",
       hammam: a.tunisia === "yes" && state.guest.invitHammam ? a.hammam : "",
@@ -339,7 +346,7 @@
   // ---------- boot ----------
   function prefill(r) {
     const a = state.answers;
-    a.names = r.names || ""; a.partySize = r.partySize || 1; a.city = r.city || ""; a.country = r.country || "";
+    a.partySize = r.partySize || 1; a.plusOne = (r.partySize || 1) >= 2; a.city = r.city || ""; a.country = r.country || "";
     a.bretagne = r.bretagne || ""; a.tunisia = r.tunisia || "";
     if (!state.guest.vip) a._single = r.bretagne === "yes" ? "bretagne" : r.tunisia === "yes" ? "tunis" : (r.bretagne === "no" && r.tunisia === "no" ? "decline" : "");
     a.earlyArrival = r.earlyArrival || ""; a.hammam = r.hammam || ""; a.soiree = r.soiree || ""; a.note = r.note || "";
