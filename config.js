@@ -43,14 +43,14 @@ const CONFIG = {
   // an item without a photo shows a botanical ornament instead.
   timeline: {
     fr: [
-      { date: "2019", text: "Notre rencontre", img: "" },
-      { date: "2026", text: "La demande", img: "" },
-      { date: "2027", text: "Deux mariages, deux pays", img: "" }
+      { date: "2019", text: "Notre rencontre", media: [] },
+      { date: "2026", text: "La demande", media: [] },
+      { date: "2027", text: "Deux mariages, deux pays", media: [] }
     ],
     en: [
-      { date: "2019", text: "How we met", img: "" },
-      { date: "2026", text: "The proposal", img: "" },
-      { date: "2027", text: "Two weddings, two countries", img: "" }
+      { date: "2019", text: "How we met", media: [] },
+      { date: "2026", text: "The proposal", media: [] },
+      { date: "2027", text: "Two weddings, two countries", media: [] }
     ]
   },
 

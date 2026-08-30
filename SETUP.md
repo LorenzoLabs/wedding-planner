@@ -44,12 +44,15 @@ botanical ornament instead.
 
 ### Easiest: the drag-and-drop uploader page
 
-`…/timeline-admin.html?key=<admin_key>` is a private page where you drag a photo
-in, type the date + captions, and click **Ajouter** — the photo uploads to your
-Google Drive automatically and a Timeline row is created. You can reorder (▲▼) and
-delete moments there too. One-time setup: in Apps Script run **`authorizeDrive`**
-once and grant the Drive permission (the uploader saves photos to a
-"Wedding Timeline Photos" folder in your Drive; they never touch the public repo).
+`…/timeline-admin.html?key=<admin_key>` is a private page where you drag in **up to
+3 photos or videos** per moment, pick a **date** (moments auto-sort chronologically),
+type the captions, and click **Ajouter le moment**. Media uploads to your Google
+Drive automatically. Multiple photos render as a fanned polaroid pile on the site.
+Videos: drop a short clip (max ~35 MB) or paste a **YouTube / Google Drive** link.
+One-time setup: in Apps Script run **`authorizeDrive`** once and grant the Drive
+permission (media is saved to a "Wedding Timeline Photos" folder in your Drive; it
+never touches the public repo). If you edited an old Timeline tab, run
+**`migrateTimeline`** once to upgrade it to the new format.
 
 ### Or by hand
 

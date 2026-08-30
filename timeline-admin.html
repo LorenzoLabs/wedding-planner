@@ -13,35 +13,41 @@
     .serif { font-family: 'Cormorant Garamond', Georgia, serif; }
     .drop { border: 2px dashed #e0d6c2; }
     .drop.over { border-color: #a58a5c; background: #fffdf9; }
-    input, textarea { background: #fffdf9; }
+    input, textarea, select { background: #fffdf9; }
+    .thumb { width: 76px; height: 76px; object-fit: cover; border-radius: .5rem; }
   </style>
 </head>
 <body class="min-h-screen">
   <div class="max-w-2xl mx-auto px-5 py-8">
     <h1 class="serif text-3xl font-bold mb-1">Notre histoire — gérer la timeline</h1>
-    <p class="text-sm text-stone-500 mb-6">Ajoutez vos photos et légendes. Elles apparaissent sur le site en une minute.</p>
+    <p class="text-sm text-stone-500 mb-6">Les moments se rangent automatiquement par date. Jusqu'à 3 photos/vidéos par moment.</p>
 
-    <!-- add form -->
     <section class="bg-white rounded-2xl border border-stone-200 p-5 mb-8">
-      <div id="drop" class="drop rounded-xl p-6 text-center cursor-pointer mb-4" style="border-color:#e0d6c2">
-        <div id="drop-empty">
-          <p class="text-3xl mb-2">🖼️</p>
-          <p class="text-sm">Glissez une photo ici, ou cliquez pour choisir</p>
-          <p class="text-xs text-stone-400 mt-1">Facultatif — une entrée sans photo affiche une fleur</p>
-        </div>
-        <img id="preview" class="hidden mx-auto max-h-56 rounded-lg" alt="">
-        <input id="file" type="file" accept="image/*" class="hidden">
+      <!-- media picker -->
+      <div id="drop" class="drop rounded-xl p-5 text-center cursor-pointer mb-3">
+        <p class="text-2xl mb-1">🖼️🎬</p>
+        <p class="text-sm">Glissez jusqu'à 3 photos ou vidéos, ou cliquez</p>
+        <p class="text-xs text-stone-400 mt-1">Vidéos : gardez-les courtes (max ~35 Mo) — ou collez un lien ci-dessous</p>
+        <input id="file" type="file" accept="image/*,video/*" multiple class="hidden">
       </div>
-      <div class="grid sm:grid-cols-3 gap-3">
+      <div class="flex gap-2 mb-3">
+        <input id="link" placeholder="Coller un lien YouTube ou Google Drive (vidéo)…" class="flex-1 border border-stone-300 rounded-lg p-2 text-sm">
+        <button id="addlink" class="px-3 py-2 rounded-lg border border-stone-300 text-sm">Ajouter le lien</button>
+      </div>
+      <div id="media" class="flex flex-wrap gap-2 mb-4"></div>
+
+      <div class="grid sm:grid-cols-2 gap-3">
         <div><label class="block text-xs mb-1 text-stone-500">Date</label>
-          <input id="f-date" placeholder="16 mars 2025" class="w-full border border-stone-300 rounded-lg p-2"></div>
+          <input id="f-date" type="date" class="w-full border border-stone-300 rounded-lg p-2"></div>
+        <div><label class="block text-xs mb-1 text-stone-500">Étiquette affichée (optionnel)</label>
+          <input id="f-label" placeholder="ex. Été 2023" class="w-full border border-stone-300 rounded-lg p-2"></div>
         <div><label class="block text-xs mb-1 text-stone-500">Description (français)</label>
           <input id="f-fr" placeholder="Notre rencontre à Berlin" class="w-full border border-stone-300 rounded-lg p-2"></div>
         <div><label class="block text-xs mb-1 text-stone-500">Description (anglais, optionnel)</label>
           <input id="f-en" placeholder="We met in Berlin" class="w-full border border-stone-300 rounded-lg p-2"></div>
       </div>
       <div class="flex items-center gap-3 mt-4">
-        <button id="add" class="px-5 py-2 rounded-lg bg-stone-800 text-white">Ajouter</button>
+        <button id="add" class="px-5 py-2 rounded-lg bg-stone-800 text-white">Ajouter le moment</button>
         <span id="status" class="text-sm text-stone-500"></span>
       </div>
     </section>
@@ -55,19 +61,28 @@
   (function () {
     const key = new URLSearchParams(location.search).get("key");
     const $ = id => document.getElementById(id);
-    const status = (m) => { $("status").textContent = m || ""; };
-    let picked = null; // { dataB64, mimeType, filename } or null
+    const status = m => { $("status").textContent = m || ""; };
+    let media = []; // up to 3: {dataB64, mimeType, filename, preview} | {link, video, preview}
 
     if (!CONFIG.gasUrl) { $("list").textContent = "Configurez d'abord l'API (config.js)."; return; }
     if (!key) { $("list").innerHTML = "<p class='text-red-600'>Ajoutez ?key=VOTRE_CLE à l'URL (onglet Config de la Sheet).</p>"; return; }
 
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     async function api(payload) {
       const res = await fetch(CONFIG.gasUrl, { method: "POST", body: JSON.stringify(Object.assign({ key }, payload)) });
       return res.json();
     }
 
-    // shrink an image client-side before upload (max 1600px, JPEG q0.85)
-    function shrink(file, cb) {
+    // date input (YYYY-MM-DD) -> nice labels, auto-filled unless the user typed a custom label
+    function labels(iso) {
+      if (!iso) return { fr: "", en: "" };
+      const d = new Date(iso + "T12:00:00");
+      const fr = d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+      const en = d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+      return { fr, en };
+    }
+
+    function shrinkImage(file, cb) {
       const rd = new FileReader();
       rd.onload = e => {
         const img = new Image();
@@ -78,64 +93,97 @@
           const c = document.createElement("canvas"); c.width = w; c.height = h;
           c.getContext("2d").drawImage(img, 0, 0, w, h);
           const url = c.toDataURL("image/jpeg", 0.85);
-          $("preview").src = url; $("preview").classList.remove("hidden"); $("drop-empty").classList.add("hidden");
-          cb({ dataB64: url.split(",")[1], mimeType: "image/jpeg", filename: (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg" });
+          cb({ dataB64: url.split(",")[1], mimeType: "image/jpeg", filename: (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg", preview: url, kind: "image" });
         };
         img.src = e.target.result;
       };
       rd.readAsDataURL(file);
     }
 
-    function onFile(file) { if (file) shrink(file, p => { picked = p; }); }
+    function addFile(file) {
+      if (media.length >= 3) { status("3 médias maximum par moment."); return; }
+      if (file.type.indexOf("image") === 0) {
+        shrinkImage(file, m => { media.push(m); renderMedia(); });
+      } else if (file.type.indexOf("video") === 0) {
+        if (file.size > 35 * 1024 * 1024) { status("Vidéo trop lourde (" + Math.round(file.size / 1e6) + " Mo). Max ~35 Mo, ou collez un lien YouTube/Drive."); return; }
+        const rd = new FileReader();
+        rd.onload = e => { media.push({ dataB64: e.target.result.split(",")[1], mimeType: file.type, filename: file.name || "clip.mp4", preview: "", kind: "video" }); renderMedia(); };
+        rd.readAsDataURL(file);
+      }
+    }
+
+    function renderMedia() {
+      $("media").innerHTML = media.map((m, i) => `
+        <div class="relative">
+          ${m.kind === "image" && m.preview ? `<img src="${esc(m.preview)}" class="thumb">`
+            : `<div class="thumb bg-stone-800 text-white flex items-center justify-center text-2xl">🎬</div>`}
+          <button data-rm="${i}" class="absolute -top-2 -right-2 bg-white border border-stone-300 rounded-full w-5 h-5 text-xs leading-none">✕</button>
+        </div>`).join("");
+      $("media").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { media.splice(+b.dataset.rm, 1); renderMedia(); });
+    }
 
     $("drop").onclick = () => $("file").click();
-    $("file").onchange = e => onFile(e.target.files[0]);
+    $("file").onchange = e => { [...e.target.files].slice(0, 3).forEach(addFile); e.target.value = ""; };
     ["dragover", "dragenter"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.add("over"); }));
     ["dragleave", "drop"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
-    $("drop").addEventListener("drop", e => { if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]); });
+    $("drop").addEventListener("drop", e => [...e.dataTransfer.files].slice(0, 3).forEach(addFile));
+
+    $("addlink").onclick = () => {
+      const url = $("link").value.trim();
+      if (!url) return;
+      if (media.length >= 3) { status("3 médias maximum."); return; }
+      const isVideo = /youtu\.be|youtube\.com|\.mp4|\.mov|\.webm/i.test(url);
+      media.push({ link: url, video: isVideo, kind: "video", preview: "" });
+      $("link").value = ""; renderMedia();
+    };
+
+    $("f-date").onchange = () => {
+      if (!$("f-label").value.trim()) { /* label stays auto */ }
+    };
 
     $("add").onclick = async () => {
-      const date = $("f-date").value.trim(), fr = $("f-fr").value.trim(), en = $("f-en").value.trim();
-      if (!date && !fr && !picked) { status("Ajoutez au moins une date, une description ou une photo."); return; }
-      $("add").disabled = true; status(picked ? "Envoi de la photo…" : "Ajout…");
+      const iso = $("f-date").value;
+      const custom = $("f-label").value.trim();
+      const lab = labels(iso);
+      const dateFr = custom || lab.fr, dateEn = custom || lab.en;
+      const fr = $("f-fr").value.trim(), en = $("f-en").value.trim();
+      if (!dateFr && !fr && !media.length) { status("Ajoutez au moins une date, une description ou un média."); return; }
+      $("add").disabled = true; status(media.some(m => m.dataB64) ? "Envoi des médias…" : "Ajout…");
       try {
-        const r = await api(Object.assign({ action: "add_timeline", date, descFr: fr, descEn: en }, picked || {}));
+        const payload = { action: "add_timeline", sort: iso || "", dateFr, dateEn, descFr: fr, descEn: en,
+          media: media.map(m => m.link ? { link: m.link, video: m.video } : { dataB64: m.dataB64, mimeType: m.mimeType, filename: m.filename }) };
+        const r = await api(payload);
         if (!r.ok) { status("Erreur : " + (r.error || "inconnue")); $("add").disabled = false; return; }
-        $("f-date").value = ""; $("f-fr").value = ""; $("f-en").value = "";
-        picked = null; $("preview").classList.add("hidden"); $("drop-empty").classList.remove("hidden"); $("file").value = "";
-        status("Ajouté ✓"); render(r.items);
+        $("f-date").value = ""; $("f-label").value = ""; $("f-fr").value = ""; $("f-en").value = "";
+        media = []; renderMedia(); status("Ajouté ✓"); render(r.items);
       } catch (e) { status("Erreur réseau, réessayez."); }
       $("add").disabled = false;
     };
 
-    async function act(payload) { status("…"); const r = await api(payload); if (r.ok) { render(r.items); status(""); } else status("Erreur : " + r.error); }
-
-    function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    async function del(row) { status("…"); const r = await api({ action: "delete_timeline", row }); if (r.ok) { render(r.items); status(""); } else status("Erreur"); }
 
     function render(items) {
       $("count").textContent = items.length;
       if (!items.length) { $("list").innerHTML = "<p class='text-stone-400'>Aucun moment pour l'instant.</p>"; return; }
-      $("list").innerHTML = items.map((it, i) => `
-        <div class="bg-white rounded-xl border border-stone-200 p-3 flex gap-3 items-center">
-          ${it.photo ? `<img src="${esc(it.photo)}" class="w-20 h-20 object-cover rounded-lg flex-shrink-0" alt="">`
-            : `<div class="w-20 h-20 rounded-lg bg-stone-100 flex items-center justify-center text-2xl flex-shrink-0">🌿</div>`}
+      $("list").innerHTML = items.map(it => {
+        const first = it.media && it.media[0];
+        const thumb = first
+          ? (first.type === "video"
+              ? `<div class="thumb bg-stone-800 text-white flex items-center justify-center text-xl flex-shrink-0">${first.thumb ? `<img src="${esc(first.thumb)}" class="thumb">` : "🎬"}</div>`
+              : `<img src="${esc(first.src)}" class="thumb flex-shrink-0">`)
+          : `<div class="thumb bg-stone-100 flex items-center justify-center text-xl flex-shrink-0">🌿</div>`;
+        const extra = it.media && it.media.length > 1 ? `<span class="text-xs text-stone-400">+${it.media.length - 1}</span>` : "";
+        return `<div class="bg-white rounded-xl border border-stone-200 p-3 flex gap-3 items-center">
+          ${thumb}
           <div class="flex-1 min-w-0">
-            <p class="font-medium">${esc(it.date) || "<span class='text-stone-400'>(sans date)</span>"}</p>
+            <p class="font-medium">${esc(it.dateFr) || "<span class='text-stone-400'>(sans date)</span>"} ${extra}</p>
             <p class="text-sm text-stone-600 truncate">${esc(it.descFr)}</p>
             ${it.descEn ? `<p class="text-xs text-stone-400 truncate">${esc(it.descEn)}</p>` : ""}
           </div>
-          <div class="flex flex-col gap-1 text-stone-400">
-            <button title="Monter" data-move="${it.row}:-1" class="hover:text-stone-800 ${i === 0 ? "invisible" : ""}">▲</button>
-            <button title="Descendre" data-move="${it.row}:1" class="hover:text-stone-800 ${i === items.length - 1 ? "invisible" : ""}">▼</button>
-          </div>
-          <button title="Supprimer" data-del="${it.row}" class="text-stone-300 hover:text-red-600 text-lg px-1">✕</button>
-        </div>`).join("");
-      $("list").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
-        if (confirm("Supprimer ce moment ?")) act({ action: "delete_timeline", row: +b.dataset.del });
-      });
-      $("list").querySelectorAll("[data-move]").forEach(b => b.onclick = () => {
-        const [row, dir] = b.dataset.move.split(":"); act({ action: "move_timeline", row: +row, dir: +dir });
-      });
+          <button data-del="${it.row}" title="Supprimer" class="text-stone-300 hover:text-red-600 text-lg px-1">✕</button>
+        </div>`;
+      }).join("");
+      $("list").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Supprimer ce moment ?")) del(+b.dataset.del); });
     }
 
     (async () => {

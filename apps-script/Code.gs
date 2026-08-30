@@ -56,12 +56,12 @@ function setupTimelineTab() {
   var sh = ensureTab(ss, "Timeline", TIMELINE_HEADERS);
   if (sh.getLastRow() < 2) {
     sh.getRange(2, 1, 2, TIMELINE_HEADERS.length).setValues([
-      ["16 mars 2025", "Notre rencontre à Berlin", "We met in Berlin", ""],
-      ["12 juin 2027", "Notre mariage", "Our wedding", ""]
+      ["2025-03-16", "16 mars 2025", "March 16, 2025", "Notre rencontre à Berlin", "We met in Berlin", ""],
+      ["2027-06-12", "12 juin 2027", "June 12, 2027", "Notre mariage", "Our wedding", ""]
     ]);
   }
-  sh.setColumnWidth(2, 260); sh.setColumnWidth(3, 260); sh.setColumnWidth(4, 320);
-  sh.getRange("A1:D1").setBackground("#f0ebe0");
+  sh.setColumnWidth(2, 150); sh.setColumnWidth(4, 240); sh.setColumnWidth(5, 240); sh.setColumnWidth(6, 380);
+  sh.getRange(1, 1, 1, TIMELINE_HEADERS.length).setBackground("#f0ebe0");
 }
 
 // Simple trigger: whenever someone edits the Guests tab (e.g. adds a guest),
@@ -116,11 +116,15 @@ function geocodeResponses() {
   }
 }
 
-var TIMELINE_HEADERS = ["date", "description_fr", "description_en", "photo"];
+// Timeline schema v2: auto-sorted by an ISO date, up to 3 media (photo/video) per row.
+//   sort: YYYY-MM-DD used only for ordering
+//   date_fr / date_en: the label shown on the polaroid (auto-filled, editable)
+//   media: up to 3 items joined by MEDIA_SEP, each "image:URL" or "video:URL"
+var TIMELINE_HEADERS = ["sort", "date_fr", "date_en", "description_fr", "description_en", "media"];
+var MEDIA_SEP = " ||| ";
 
 // ---------- helpers ----------
 // Turn any Google Drive share link into a URL the browser can display as an image.
-// Pass non-Drive URLs through unchanged.
 function driveImg(url) {
   url = String(url || "").trim();
   if (!url) return "";
@@ -128,35 +132,108 @@ function driveImg(url) {
   if (!m) m = url.match(/[?&]id=([\w-]{20,})/);
   return m ? "https://lh3.googleusercontent.com/d/" + m[1] : url;
 }
-
-// Legacy single-cell format kept as a fallback: date~text~photo||date~text~photo
-function tl(s) {
-  if (!s) return null;
-  return String(s).split("||").map(function (item) {
-    var f = item.split("~");
-    return { date: (f[0] || "").trim(), text: (f[1] || "").trim(), img: driveImg(f[2]) };
-  });
+function driveId(url) {
+  var m = String(url || "").match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?[^]*id=)([\w-]{20,})/) ||
+          String(url || "").match(/[?&]id=([\w-]{20,})/);
+  return m ? m[1] : "";
+}
+function ytId(url) {
+  var m = String(url || "").match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
+  return m ? m[1] : "";
 }
 
-// Preferred source: a dedicated "Timeline" tab (one row per moment).
-// Returns { fr: [...], en: [...] } or null if the tab is missing/empty.
+// Parse a free-text date into a sortable YYYY-MM-DD string (best effort).
+function toSortDate(s) {
+  s = String(s || "").trim();
+  var iso = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return iso[1] + "-" + iso[2] + "-" + iso[3];
+  var months = { janvier:1,"février":2,fevrier:2,mars:3,avril:4,mai:5,juin:6,juillet:7,"août":8,aout:8,septembre:9,octobre:10,novembre:11,"décembre":12,decembre:12,
+    january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12 };
+  var m = s.toLowerCase().match(/(\d{1,2})\s+([a-zàâäéèêëîïôöûüç]+)\.?\s+(\d{4})/);
+  if (m && months[m[2]]) return m[3] + "-" + ("0" + months[m[2]]).slice(-2) + "-" + ("0" + m[1]).slice(-2);
+  var mo = s.toLowerCase().match(/([a-zàâäéèêëîïôöûüç]+)\.?\s+(\d{4})/);
+  if (mo && months[mo[1]]) return mo[2] + "-" + ("0" + months[mo[1]]).slice(-2) + "-00";
+  var y = s.match(/(\d{4})/);
+  return y ? y[1] + "-00-00" : "9999-99-99"; // undated moments sort to the end
+}
+
+// One stored media token ("image:URL" / "video:URL") -> client object.
+function mediaToClient(token) {
+  token = String(token || "").trim();
+  if (!token) return null;
+  var type = "image", url = token;
+  var c = token.indexOf(":");
+  if (token.slice(0, 6) === "image:") { type = "image"; url = token.slice(6); }
+  else if (token.slice(0, 6) === "video:") { type = "video"; url = token.slice(6); }
+  url = url.trim();
+  var y = ytId(url);
+  if (y) return { type: "video", kind: "youtube", embed: "https://www.youtube.com/embed/" + y, thumb: "https://i.ytimg.com/vi/" + y + "/hqdefault.jpg" };
+  var id = driveId(url);
+  if (type === "video") {
+    return id ? { type: "video", kind: "drive", embed: "https://drive.google.com/file/d/" + id + "/preview", src: url }
+              : { type: "video", kind: "url", src: url };
+  }
+  return { type: "image", src: driveImg(url) };
+}
+function parseMedia(cell) {
+  return String(cell || "").split(MEDIA_SEP).map(function (t) { return t.trim(); })
+    .filter(Boolean).slice(0, 3).map(mediaToClient).filter(Boolean);
+}
+
+// Preferred source: the "Timeline" tab, one row per moment, sorted by date.
+// Returns { fr:[...], en:[...] } or null if missing/empty.
 function readTimeline() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Timeline");
   if (!sh) return null;
   var n = sh.getLastRow() - 1;
   if (n < 1) return null;
   var rows = sh.getRange(2, 1, n, TIMELINE_HEADERS.length).getValues();
-  var fr = [], en = [];
+  var items = [];
   rows.forEach(function (r) {
-    var date = String(r[0] || "").trim();
     var dFr = String(r[1] || "").trim();
-    var dEn = String(r[2] || "").trim() || dFr;
-    var img = driveImg(r[3]);
-    if (!date && !dFr && !img) return; // skip blank rows
-    fr.push({ date: date, text: dFr, img: img });
-    en.push({ date: date, text: dEn, img: img });
+    var media = parseMedia(r[5]);
+    var descFr = String(r[3] || "").trim();
+    if (!dFr && !descFr && !media.length) return;
+    var sort = String(r[0] || "").trim() || toSortDate(dFr);
+    items.push({ sort: sort, dateFr: dFr, dateEn: String(r[2] || "").trim() || dFr, descFr: descFr, descEn: String(r[4] || "").trim() || descFr, media: media });
   });
-  return fr.length ? { fr: fr, en: en } : null;
+  items.sort(function (a, b) { return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0; });
+  if (!items.length) return null;
+  return {
+    fr: items.map(function (it) { return { date: it.dateFr, text: it.descFr, media: it.media }; }),
+    en: items.map(function (it) { return { date: it.dateEn, text: it.descEn, media: it.media }; })
+  };
+}
+
+// Legacy fallback for the old single-cell Config format.
+function tl(s) {
+  if (!s) return null;
+  return String(s).split("||").map(function (item) {
+    var f = item.split("~");
+    var media = f[2] ? [{ type: "image", src: driveImg(f[2]) }] : [];
+    return { date: (f[0] || "").trim(), text: (f[1] || "").trim(), media: media };
+  });
+}
+
+// One-time migration of the old Timeline schema (date | desc_fr | desc_en | photo)
+// to v2. Safe to run repeatedly: it skips if already migrated.
+function migrateTimeline() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Timeline");
+  if (!sh) return;
+  var hdr = sh.getRange(1, 1, 1, 6).getValues()[0];
+  if (String(hdr[0]).trim() === "sort") return; // already v2
+  var n = sh.getLastRow() - 1;
+  var old = n > 0 ? sh.getRange(2, 1, n, 4).getValues() : [];
+  var rows = old.map(function (r) {
+    var date = String(r[0] || "").trim();
+    var photo = String(r[3] || "").trim();
+    return [toSortDate(date), date, "", String(r[1] || ""), String(r[2] || ""), photo ? "image:" + photo : ""];
+  });
+  sh.clear();
+  sh.getRange(1, 1, 1, TIMELINE_HEADERS.length).setValues([TIMELINE_HEADERS]).setFontWeight("bold");
+  if (rows.length) sh.getRange(2, 1, rows.length, TIMELINE_HEADERS.length).setValues(rows);
+  sh.setColumnWidth(2, 150); sh.setColumnWidth(4, 240); sh.setColumnWidth(5, 240); sh.setColumnWidth(6, 380);
 }
 
 function json(obj) {
@@ -371,6 +448,7 @@ function timelineFolder() {
   return it.hasNext() ? it.next() : DriveApp.createFolder(name);
 }
 
+// Rows for the manager page, already sorted by date (matches the public site).
 function readTimelineRows() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Timeline");
   if (!sh) return [];
@@ -379,10 +457,33 @@ function readTimelineRows() {
   var rows = sh.getRange(2, 1, n, TIMELINE_HEADERS.length).getValues();
   var out = [];
   rows.forEach(function (r, i) {
-    if (!String(r[0] || "").trim() && !String(r[1] || "").trim() && !String(r[3] || "").trim()) return;
-    out.push({ row: i + 2, date: String(r[0] || ""), descFr: String(r[1] || ""), descEn: String(r[2] || ""), photo: driveImg(r[3]) });
+    var dFr = String(r[1] || "").trim(), descFr = String(r[3] || "").trim(), media = parseMedia(r[5]);
+    if (!dFr && !descFr && !media.length) return;
+    out.push({
+      row: i + 2, sort: String(r[0] || "").trim() || toSortDate(dFr),
+      dateFr: dFr, dateEn: String(r[2] || "").trim(), descFr: descFr, descEn: String(r[4] || "").trim(), media: media
+    });
   });
+  out.sort(function (a, b) { return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0; });
   return out;
+}
+
+// Upload one media payload {dataB64, mimeType, filename} to Drive, return a "type:URL" token.
+function storeMedia(m) {
+  var isVideo = String(m.mimeType || "").indexOf("video") === 0;
+  var blob = Utilities.newBlob(Utilities.base64Decode(m.dataB64), m.mimeType || "image/jpeg", m.filename || (isVideo ? "clip.mp4" : "photo.jpg"));
+  var file = timelineFolder().createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return (isVideo ? "video:" : "image:") + "https://drive.google.com/file/d/" + file.getId() + "/view";
+}
+
+// A pasted link -> "type:URL" token (YouTube/Drive video vs image).
+function linkToken(url) {
+  url = String(url || "").trim();
+  if (!url) return "";
+  if (ytId(url)) return "video:" + url;
+  // Drive links are ambiguous; default to image unless the user marked it a video.
+  return "image:" + url;
 }
 
 function handleAdmin(body) {
@@ -390,42 +491,26 @@ function handleAdmin(body) {
   if (String(body.key) !== String(cfg.admin_key)) return json({ ok: false, error: "bad_key" });
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName("Timeline") || ensureTab(ss, "Timeline", TIMELINE_HEADERS);
+  if (String(sh.getRange(1, 1).getValue()).trim() !== "sort") migrateTimeline();
 
   if (body.action === "list_timeline") {
     return json({ ok: true, items: readTimelineRows() });
   }
 
   if (body.action === "add_timeline") {
-    var link = "";
-    if (body.dataB64) {
-      var blob = Utilities.newBlob(Utilities.base64Decode(body.dataB64), body.mimeType || "image/jpeg", body.filename || "photo.jpg");
-      var file = timelineFolder().createFile(blob);
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      link = "https://drive.google.com/file/d/" + file.getId() + "/view";
-    } else if (body.photo) {
-      link = String(body.photo);
-    }
-    sh.appendRow([String(body.date || ""), String(body.descFr || ""), String(body.descEn || ""), link]);
+    var tokens = [];
+    (body.media || []).slice(0, 3).forEach(function (m) {
+      if (m && m.dataB64) tokens.push(storeMedia(m));
+      else if (m && m.link) tokens.push(m.video ? "video:" + m.link : linkToken(m.link));
+    });
+    var sort = String(body.sort || "").trim() || toSortDate(body.dateFr);
+    sh.appendRow([sort, String(body.dateFr || ""), String(body.dateEn || ""), String(body.descFr || ""), String(body.descEn || ""), tokens.join(MEDIA_SEP)]);
     return json({ ok: true, items: readTimelineRows() });
   }
 
   if (body.action === "delete_timeline") {
     var row = parseInt(body.row, 10);
     if (row >= 2 && row <= sh.getLastRow()) sh.deleteRow(row);
-    return json({ ok: true, items: readTimelineRows() });
-  }
-
-  if (body.action === "move_timeline") {
-    // swap a row with its neighbour (dir -1 up / +1 down) to reorder
-    var r = parseInt(body.row, 10), dir = parseInt(body.dir, 10) === 1 ? 1 : -1, other = r + dir;
-    var last = sh.getLastRow();
-    if (r >= 2 && other >= 2 && r <= last && other <= last) {
-      var w = TIMELINE_HEADERS.length;
-      var a = sh.getRange(r, 1, 1, w).getValues();
-      var b = sh.getRange(other, 1, 1, w).getValues();
-      sh.getRange(r, 1, 1, w).setValues(b);
-      sh.getRange(other, 1, 1, w).setValues(a);
-    }
     return json({ ok: true, items: readTimelineRows() });
   }
 

@@ -49,17 +49,38 @@
     if (!items.length) { section.classList.add("hidden"); return; }
     section.classList.remove("hidden");
     const flower = (i) => `<svg class="w-full h-32" style="color: var(--gold)"><use href="${i % 2 ? "#acacia" : "#olive-branch"}" /></svg>`;
+    const tilts = ["-2.2deg", "1.8deg", "-1.2deg"];
+
+    // Render up to 3 media as a fanned polaroid pile; a lone item is a single polaroid.
+    function mediaPile(media, i, caption) {
+      if (!media || !media.length) {
+        return `<div class="polaroid ${i % 2 ? "tilt-r" : "tilt-l"}">${flower(i)}<p class="caption">${caption}</p></div>`;
+      }
+      const inner = (m) => m.type === "video"
+        ? (m.embed
+            ? `<div class="vid"><iframe src="${esc(m.embed)}" allow="autoplay; encrypted-media" allowfullscreen loading="lazy"></iframe></div>`
+            : `<video src="${esc(m.src)}" controls preload="metadata"></video>`)
+        : `<img src="${esc(m.src)}" alt="" loading="lazy">`;
+      if (media.length === 1) {
+        return `<div class="polaroid ${i % 2 ? "tilt-r" : "tilt-l"}">${inner(media[0])}<p class="caption">${caption}</p></div>`;
+      }
+      return `<div class="pile">
+        ${media.map((m, k) => `<div class="polaroid pile-item" style="transform:rotate(${tilts[k] || "0deg"});z-index:${media.length - k}">
+          ${inner(m)}${k === media.length - 1 ? `<p class="caption">${caption}</p>` : ""}
+        </div>`).join("")}
+      </div>`;
+    }
+
     section.innerHTML = `
       <h2 class="serif text-center text-2xl font-semibold mb-8">${esc(t("timelineTitle"))}</h2>
       <div class="tl">
-        ${items.map((it, i) => `
-          <div class="tl-item">
+        ${items.map((it, i) => {
+          const caption = `${esc(it.date)}${it.date && it.text ? " · " : ""}${esc(it.text)}`;
+          return `<div class="tl-item">
             <span class="tl-dot"><svg width="26" height="26" style="color: var(--gold)"><use href="#blossom"/></svg></span>
-            <div class="polaroid ${i % 2 ? "tilt-r" : "tilt-l"}">
-              ${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy">` : flower(i)}
-              <p class="caption">${esc(it.date)}${it.date && it.text ? " · " : ""}${esc(it.text)}</p>
-            </div>
-          </div>`).join("")}
+            ${mediaPile(it.media, i, caption)}
+          </div>`;
+        }).join("")}
       </div>`;
   }
   document.getElementById("lang-fr").onclick = () => setLang("fr");
