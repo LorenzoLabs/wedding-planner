@@ -64,9 +64,11 @@ function generateTokens() {
   var n = sh.getLastRow() - 1;
   if (n < 1) return;
   var toks = sh.getRange(2, 1, n, 1).getValues();
+  var names = sh.getRange(2, 2, n, 1).getValues();
   var alphabet = "abcdefghjkmnpqrstuvwxyz23456789"; // no lookalikes
   for (var i = 0; i < n; i++) {
-    if (!toks[i][0]) {
+    // only rows that actually have a guest name (formulas can extend getLastRow)
+    if (!toks[i][0] && String(names[i][0]).trim()) {
       var s = "";
       for (var j = 0; j < 8; j++) s += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
       toks[i][0] = s;
