@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gérer la timeline</title>
+  <meta name="robots" content="noindex,nofollow">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Jost', sans-serif; background: #f7f3ec; color: #2b2620; font-weight: 300; }
+    .serif { font-family: 'Cormorant Garamond', Georgia, serif; }
+    .drop { border: 2px dashed #e0d6c2; }
+    .drop.over { border-color: #a58a5c; background: #fffdf9; }
+    input, textarea { background: #fffdf9; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-2xl mx-auto px-5 py-8">
+    <h1 class="serif text-3xl font-bold mb-1">Notre histoire — gérer la timeline</h1>
+    <p class="text-sm text-stone-500 mb-6">Ajoutez vos photos et légendes. Elles apparaissent sur le site en une minute.</p>
+
+    <!-- add form -->
+    <section class="bg-white rounded-2xl border border-stone-200 p-5 mb-8">
+      <div id="drop" class="drop rounded-xl p-6 text-center cursor-pointer mb-4" style="border-color:#e0d6c2">
+        <div id="drop-empty">
+          <p class="text-3xl mb-2">🖼️</p>
+          <p class="text-sm">Glissez une photo ici, ou cliquez pour choisir</p>
+          <p class="text-xs text-stone-400 mt-1">Facultatif — une entrée sans photo affiche une fleur</p>
+        </div>
+        <img id="preview" class="hidden mx-auto max-h-56 rounded-lg" alt="">
+        <input id="file" type="file" accept="image/*" class="hidden">
+      </div>
+      <div class="grid sm:grid-cols-3 gap-3">
+        <div><label class="block text-xs mb-1 text-stone-500">Date</label>
+          <input id="f-date" placeholder="16 mars 2025" class="w-full border border-stone-300 rounded-lg p-2"></div>
+        <div><label class="block text-xs mb-1 text-stone-500">Description (français)</label>
+          <input id="f-fr" placeholder="Notre rencontre à Berlin" class="w-full border border-stone-300 rounded-lg p-2"></div>
+        <div><label class="block text-xs mb-1 text-stone-500">Description (anglais, optionnel)</label>
+          <input id="f-en" placeholder="We met in Berlin" class="w-full border border-stone-300 rounded-lg p-2"></div>
+      </div>
+      <div class="flex items-center gap-3 mt-4">
+        <button id="add" class="px-5 py-2 rounded-lg bg-stone-800 text-white">Ajouter</button>
+        <span id="status" class="text-sm text-stone-500"></span>
+      </div>
+    </section>
+
+    <h2 class="serif text-xl font-semibold mb-3">Moments (<span id="count">…</span>)</h2>
+    <div id="list" class="space-y-3">Chargement…</div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+  (function () {
+    const key = new URLSearchParams(location.search).get("key");
+    const $ = id => document.getElementById(id);
+    const status = (m) => { $("status").textContent = m || ""; };
+    let picked = null; // { dataB64, mimeType, filename } or null
+
+    if (!CONFIG.gasUrl) { $("list").textContent = "Configurez d'abord l'API (config.js)."; return; }
+    if (!key) { $("list").innerHTML = "<p class='text-red-600'>Ajoutez ?key=VOTRE_CLE à l'URL (onglet Config de la Sheet).</p>"; return; }
+
+    async function api(payload) {
+      const res = await fetch(CONFIG.gasUrl, { method: "POST", body: JSON.stringify(Object.assign({ key }, payload)) });
+      return res.json();
+    }
+
+    // shrink an image client-side before upload (max 1600px, JPEG q0.85)
+    function shrink(file, cb) {
+      const rd = new FileReader();
+      rd.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          const s = Math.min(1, 1600 / Math.max(w, h));
+          w = Math.round(w * s); h = Math.round(h * s);
+          const c = document.createElement("canvas"); c.width = w; c.height = h;
+          c.getContext("2d").drawImage(img, 0, 0, w, h);
+          const url = c.toDataURL("image/jpeg", 0.85);
+          $("preview").src = url; $("preview").classList.remove("hidden"); $("drop-empty").classList.add("hidden");
+          cb({ dataB64: url.split(",")[1], mimeType: "image/jpeg", filename: (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg" });
+        };
+        img.src = e.target.result;
+      };
+      rd.readAsDataURL(file);
+    }
+
+    function onFile(file) { if (file) shrink(file, p => { picked = p; }); }
+
+    $("drop").onclick = () => $("file").click();
+    $("file").onchange = e => onFile(e.target.files[0]);
+    ["dragover", "dragenter"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.add("over"); }));
+    ["dragleave", "drop"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
+    $("drop").addEventListener("drop", e => { if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]); });
+
+    $("add").onclick = async () => {
+      const date = $("f-date").value.trim(), fr = $("f-fr").value.trim(), en = $("f-en").value.trim();
+      if (!date && !fr && !picked) { status("Ajoutez au moins une date, une description ou une photo."); return; }
+      $("add").disabled = true; status(picked ? "Envoi de la photo…" : "Ajout…");
+      try {
+        const r = await api(Object.assign({ action: "add_timeline", date, descFr: fr, descEn: en }, picked || {}));
+        if (!r.ok) { status("Erreur : " + (r.error || "inconnue")); $("add").disabled = false; return; }
+        $("f-date").value = ""; $("f-fr").value = ""; $("f-en").value = "";
+        picked = null; $("preview").classList.add("hidden"); $("drop-empty").classList.remove("hidden"); $("file").value = "";
+        status("Ajouté ✓"); render(r.items);
+      } catch (e) { status("Erreur réseau, réessayez."); }
+      $("add").disabled = false;
+    };
+
+    async function act(payload) { status("…"); const r = await api(payload); if (r.ok) { render(r.items); status(""); } else status("Erreur : " + r.error); }
+
+    function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+    function render(items) {
+      $("count").textContent = items.length;
+      if (!items.length) { $("list").innerHTML = "<p class='text-stone-400'>Aucun moment pour l'instant.</p>"; return; }
+      $("list").innerHTML = items.map((it, i) => `
+        <div class="bg-white rounded-xl border border-stone-200 p-3 flex gap-3 items-center">
+          ${it.photo ? `<img src="${esc(it.photo)}" class="w-20 h-20 object-cover rounded-lg flex-shrink-0" alt="">`
+            : `<div class="w-20 h-20 rounded-lg bg-stone-100 flex items-center justify-center text-2xl flex-shrink-0">🌿</div>`}
+          <div class="flex-1 min-w-0">
+            <p class="font-medium">${esc(it.date) || "<span class='text-stone-400'>(sans date)</span>"}</p>
+            <p class="text-sm text-stone-600 truncate">${esc(it.descFr)}</p>
+            ${it.descEn ? `<p class="text-xs text-stone-400 truncate">${esc(it.descEn)}</p>` : ""}
+          </div>
+          <div class="flex flex-col gap-1 text-stone-400">
+            <button title="Monter" data-move="${it.row}:-1" class="hover:text-stone-800 ${i === 0 ? "invisible" : ""}">▲</button>
+            <button title="Descendre" data-move="${it.row}:1" class="hover:text-stone-800 ${i === items.length - 1 ? "invisible" : ""}">▼</button>
+          </div>
+          <button title="Supprimer" data-del="${it.row}" class="text-stone-300 hover:text-red-600 text-lg px-1">✕</button>
+        </div>`).join("");
+      $("list").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+        if (confirm("Supprimer ce moment ?")) act({ action: "delete_timeline", row: +b.dataset.del });
+      });
+      $("list").querySelectorAll("[data-move]").forEach(b => b.onclick = () => {
+        const [row, dir] = b.dataset.move.split(":"); act({ action: "move_timeline", row: +row, dir: +dir });
+      });
+    }
+
+    (async () => {
+      const r = await api({ action: "list_timeline" });
+      if (!r.ok) { $("list").innerHTML = "<p class='text-red-600'>Clé invalide ou erreur.</p>"; return; }
+      render(r.items);
+    })();
+  })();
+  </script>
+</body>
+</html>

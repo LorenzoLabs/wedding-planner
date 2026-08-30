@@ -297,6 +297,9 @@ function doPost(e) {
   var body;
   try { body = JSON.parse(e.postData.contents); } catch (err) { return json({ ok: false, error: "bad_json" }); }
 
+  // Admin actions (timeline manager) carry an "action" + admin key; guests never do.
+  if (body.action) return handleAdmin(body);
+
   var guest = findGuest(body.token);
   if (!guest) return json({ ok: false, error: "bad_token" });
   var isVip = guest.vip === true || String(guest.vip).toUpperCase() === "TRUE";
@@ -356,4 +359,75 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ---------- timeline manager (private admin page) ----------
+// Run once from the editor to grant the Drive permission the uploader needs.
+function authorizeDrive() { timelineFolder(); }
+
+function timelineFolder() {
+  var name = "Wedding Timeline Photos";
+  var it = DriveApp.getFoldersByName(name);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(name);
+}
+
+function readTimelineRows() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Timeline");
+  if (!sh) return [];
+  var n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  var rows = sh.getRange(2, 1, n, TIMELINE_HEADERS.length).getValues();
+  var out = [];
+  rows.forEach(function (r, i) {
+    if (!String(r[0] || "").trim() && !String(r[1] || "").trim() && !String(r[3] || "").trim()) return;
+    out.push({ row: i + 2, date: String(r[0] || ""), descFr: String(r[1] || ""), descEn: String(r[2] || ""), photo: driveImg(r[3]) });
+  });
+  return out;
+}
+
+function handleAdmin(body) {
+  var cfg = getConfig();
+  if (String(body.key) !== String(cfg.admin_key)) return json({ ok: false, error: "bad_key" });
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Timeline") || ensureTab(ss, "Timeline", TIMELINE_HEADERS);
+
+  if (body.action === "list_timeline") {
+    return json({ ok: true, items: readTimelineRows() });
+  }
+
+  if (body.action === "add_timeline") {
+    var link = "";
+    if (body.dataB64) {
+      var blob = Utilities.newBlob(Utilities.base64Decode(body.dataB64), body.mimeType || "image/jpeg", body.filename || "photo.jpg");
+      var file = timelineFolder().createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      link = "https://drive.google.com/file/d/" + file.getId() + "/view";
+    } else if (body.photo) {
+      link = String(body.photo);
+    }
+    sh.appendRow([String(body.date || ""), String(body.descFr || ""), String(body.descEn || ""), link]);
+    return json({ ok: true, items: readTimelineRows() });
+  }
+
+  if (body.action === "delete_timeline") {
+    var row = parseInt(body.row, 10);
+    if (row >= 2 && row <= sh.getLastRow()) sh.deleteRow(row);
+    return json({ ok: true, items: readTimelineRows() });
+  }
+
+  if (body.action === "move_timeline") {
+    // swap a row with its neighbour (dir -1 up / +1 down) to reorder
+    var r = parseInt(body.row, 10), dir = parseInt(body.dir, 10) === 1 ? 1 : -1, other = r + dir;
+    var last = sh.getLastRow();
+    if (r >= 2 && other >= 2 && r <= last && other <= last) {
+      var w = TIMELINE_HEADERS.length;
+      var a = sh.getRange(r, 1, 1, w).getValues();
+      var b = sh.getRange(other, 1, 1, w).getValues();
+      sh.getRange(r, 1, 1, w).setValues(b);
+      sh.getRange(other, 1, 1, w).setValues(a);
+    }
+    return json({ ok: true, items: readTimelineRows() });
+  }
+
+  return json({ ok: false, error: "unknown_action" });
 }

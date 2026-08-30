@@ -40,10 +40,22 @@ one row per moment and these columns:
 | `photo` | paste the normal Google Drive **share link** of the photo |
 
 Add a row, done — the site updates within a minute. A row without a photo shows a
-botanical ornament instead. For photos: upload to Google Drive, right-click →
-Share → "Anyone with the link", Copy link, paste it in the `photo` column. The
-backend turns that share link into a displayable image automatically, so the
-photos never live in the public repo.
+botanical ornament instead.
+
+### Easiest: the drag-and-drop uploader page
+
+`…/timeline-admin.html?key=<admin_key>` is a private page where you drag a photo
+in, type the date + captions, and click **Ajouter** — the photo uploads to your
+Google Drive automatically and a Timeline row is created. You can reorder (▲▼) and
+delete moments there too. One-time setup: in Apps Script run **`authorizeDrive`**
+once and grant the Drive permission (the uploader saves photos to a
+"Wedding Timeline Photos" folder in your Drive; they never touch the public repo).
+
+### Or by hand
+
+Add a row in the Timeline tab and paste a Google Drive **share link** in the
+`photo` column (right-click the photo → Share → "Anyone with the link" → Copy).
+The backend converts that link into a displayable image automatically.
 
 ## 2. Deploy the API
 
