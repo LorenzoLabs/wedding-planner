@@ -10,10 +10,11 @@ const CONFIG = {
   // so you can preview it before any backend setup.
   gasUrl: "https://script.google.com/macros/s/AKfycbzXJzZQUhaK_FKSZn_s8jQaxCmkeqUeDsLakbM-ni5vdObCDk4tcMwgwr1kPtnfOhRFfQ/exec",
 
-  // PRIVACY: everything below is a FICTIONAL demo placeholder. The real couple
-  // names, dates, venues and program are stored in the Google Sheet (Config tab,
-  // site_* keys) and fetched at runtime via the API — never committed here.
-  coupleNames: "Camille & Alex", // demo placeholder — real value comes from the Sheet
+  // PRIVACY: dates, venues and program below are FICTIONAL demo placeholders —
+  // the real ones live in the Google Sheet (Config tab, site_* keys) and are
+  // fetched at runtime. Put your names here (or leave a placeholder and set
+  // couple_names in the Sheet if you don't want them in your repo).
+  coupleNames: "Wafa & Lorenzo",
   defaultLang: "fr",             // "fr" or "en"
 
   // The two weddings. Keys "bretagne" / "tunis" are used internally;
