@@ -51,8 +51,8 @@ const CONFIG = {
   // All user-facing texts, FR + EN.
   texts: {
     fr: {
-      title: "Notre mariage",
-      intro: "Deux célébrations, deux pays. Nous avons hâte de vous y retrouver.",
+      title: "Bienvenue au mariage de",
+      intro: "Joignez-vous à nous pour célébrer notre amour.",
       programTitle: "Le programme",
       timelineTitle: "Notre histoire",
       bretagneTitle: "Bretagne",
@@ -109,8 +109,8 @@ const CONFIG = {
       required: "Merci de remplir ce champ."
     },
     en: {
-      title: "Our wedding",
-      intro: "Two celebrations, two countries. We can't wait to see you there.",
+      title: "Welcome to the wedding of",
+      intro: "Join us in celebrating our love.",
       programTitle: "The program",
       timelineTitle: "Our story",
       bretagneTitle: "Brittany",

@@ -32,9 +32,11 @@
     .rules-pill { border: 1px solid var(--line); background: var(--card); border-radius: 9999px; font-size: .8rem; letter-spacing: .04em; }
     .lang-btn { border: 1px solid var(--line); border-radius: 9999px; padding: .2rem .7rem; font-size: .75rem; letter-spacing: .12em; }
     .lang-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-    /* while the real site texts load, show nothing instead of demo placeholders */
-    #couple, .event-title, .event-place { transition: opacity .4s ease; }
-    body.site-pending #couple, body.site-pending .event-title, body.site-pending .event-place { opacity: 0; }
+    /* while the real dates/places load, show nothing instead of demo placeholders
+       (the couple names are static in the page and never wait) */
+    .event-title, .event-place { transition: opacity .4s ease; }
+    body.site-pending .event-title, body.site-pending .event-place { opacity: 0; }
+    .ornament svg { display: inline-block; margin: 0 -14px; }
     ul.days { list-style: none; padding: 0; }
     ul.days li { padding-left: 1.1rem; position: relative; }
     ul.days li::before { content: "·"; color: var(--gold); position: absolute; left: 0; font-weight: 700; }
@@ -114,8 +116,8 @@
     <!-- hero -->
     <header class="text-center mb-10">
       <p id="t-title" class="overline-sm mb-5"></p>
-      <h1 id="couple" class="hero-names text-5xl sm:text-6xl mb-5"></h1>
-      <p class="ornament"><svg width="150" height="52" style="vertical-align:middle"><use href="#olive-branch"/></svg></p>
+      <h1 id="couple" class="hero-names text-5xl sm:text-6xl mb-5">Wafa &amp; Lorenzo</h1>
+      <p class="ornament"><svg width="130" height="46" style="vertical-align:middle"><use href="#olive-branch"/></svg><svg width="130" height="46" style="vertical-align:middle;transform:scaleX(-1)"><use href="#olive-branch"/></svg></p>
       <p id="t-intro" class="mt-5 text-[1.05rem] text-stone-600 max-w-md mx-auto"></p>
     </header>
 
