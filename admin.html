@@ -21,7 +21,7 @@
   (async function () {
     const out = document.getElementById("out");
     const key = new URLSearchParams(location.search).get("key");
-    const COLORS = { bretagne: "#2563eb", tunis: "#ea580c", both: "#7c3aed", declined: "#9ca3af" };
+    const COLORS = { bretagne: "#2563eb", tunis: "#ea580c", both: "#7c3aed", declined: "#9ca3af", maybe: "#ca8a04" };
 
     async function fetchData() {
       if (!CONFIG.gasUrl) return demoData();
@@ -53,7 +53,16 @@
       if (r.bretagne === "yes" && r.tunisia === "yes") return "both";
       if (r.bretagne === "yes") return "bretagne";
       if (r.tunisia === "yes") return "tunis";
+      if (r.bretagne === "maybe" || r.tunisia === "maybe") return "maybe";
       return "declined";
+    }
+    // label a choice, adding "(peut-être)" when an event is undecided
+    function choiceLabel(r) {
+      const base = { bretagne: "Bretagne", tunis: "Tunisie", both: "Les deux", declined: "Ne vient pas", maybe: "Indécis" }[choiceOf(r)];
+      const mb = [];
+      if (r.bretagne === "maybe") mb.push("Bretagne");
+      if (r.tunisia === "maybe") mb.push("Tunisie");
+      return mb.length ? `${base} · ${mb.join("/")} ?` : base;
     }
 
     try {
@@ -149,7 +158,7 @@
             <tbody>
               ${resp.map(r => `<tr class="border-b border-stone-100">
                 <td class="py-1 pr-3">${r.names || r.token}</td>
-                <td class="pr-3" style="color:${COLORS[choiceOf(r)]}">${{ bretagne: "Bretagne", tunis: "Tunisie", both: "Les deux", declined: "Ne vient pas" }[choiceOf(r)]}</td>
+                <td class="pr-3" style="color:${COLORS[choiceOf(r)]}">${choiceLabel(r)}</td>
                 <td class="pr-3">${r.party_size}</td>
                 <td class="pr-3">${r.early_arrival === "early" ? "dès le 9" : r.early_arrival === "weddingOnly" ? "le 12" : ""}</td>
                 <td class="pr-3">${r.hammam || ""}</td><td class="pr-3">${r.soiree || ""}</td>

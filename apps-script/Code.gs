@@ -374,7 +374,7 @@ function doGet(e) {
       plusOne: guest.plus_one === true || String(guest.plus_one).toUpperCase() === "TRUE"
     },
     response: respToClient(existing),
-    editable: !existing || new Date() <= new Date(existing.editable_until)
+    editable: phase !== "rsvp" || !existing || new Date() <= new Date(existing.editable_until)
   });
 }
 
@@ -393,7 +393,10 @@ function doPost(e) {
   var hasSoiree = guest.invit_soiree === true || String(guest.invit_soiree).toUpperCase() === "TRUE";
 
   var yn = function (v) { return v === "yes" ? "yes" : "no"; };
-  var bretagne = yn(body.bretagne), tunisia = yn(body.tunisia);
+  // VIP guests may leave an event undecided ("maybe"); regular guests are yes/no.
+  var ynm = function (v) { return v === "yes" ? "yes" : v === "maybe" ? "maybe" : "no"; };
+  var bretagne = isVip ? ynm(body.bretagne) : yn(body.bretagne);
+  var tunisia = isVip ? ynm(body.tunisia) : yn(body.tunisia);
   if (!isVip && bretagne === "yes" && tunisia === "yes") return json({ ok: false, error: "not_vip" });
 
   // party size is 1, or 2 when this guest is allowed a +1 and brings one
@@ -411,8 +414,9 @@ function doPost(e) {
     var existing = findResponse(body.token, phase);
     var now = new Date();
 
-    // 24h edit window, counted from the first submission of this phase
-    if (existing && now > new Date(existing.editable_until)) {
+    // 24h edit window applies to the binding RSVP phase only; the poll stays
+    // freely editable so guests can update a "not sure yet" answer any time.
+    if (phase === "rsvp" && existing && now > new Date(existing.editable_until)) {
       return json({ ok: false, error: "edit_closed" });
     }
 
