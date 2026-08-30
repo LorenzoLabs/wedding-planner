@@ -31,12 +31,29 @@ const CONFIG = {
     }
   },
 
+  // Timeline "our story" — fictional demo; real items come from the Sheet
+  // (Config keys timeline_fr / timeline_en, see SETUP.md). Photos are polaroids;
+  // an item without a photo shows a botanical ornament instead.
+  timeline: {
+    fr: [
+      { date: "2019", text: "Notre rencontre", img: "" },
+      { date: "2026", text: "La demande", img: "" },
+      { date: "2027", text: "Deux mariages, deux pays", img: "" }
+    ],
+    en: [
+      { date: "2019", text: "How we met", img: "" },
+      { date: "2026", text: "The proposal", img: "" },
+      { date: "2027", text: "Two weddings, two countries", img: "" }
+    ]
+  },
+
   // All user-facing texts, FR + EN.
   texts: {
     fr: {
       title: "Notre mariage",
       intro: "Deux célébrations, deux pays. Nous avons hâte de vous y retrouver.",
       programTitle: "Le programme",
+      timelineTitle: "Notre histoire",
       bretagneTitle: "Bretagne",
       bretagneDesc: "Cérémonie et fête.",
       tunisTitle: "Tunisie",
@@ -94,6 +111,7 @@ const CONFIG = {
       title: "Our wedding",
       intro: "Two celebrations, two countries. We can't wait to see you there.",
       programTitle: "The program",
+      timelineTitle: "Our story",
       bretagneTitle: "Brittany",
       bretagneDesc: "Ceremony and party.",
       tunisTitle: "Tunisia",

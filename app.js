@@ -39,6 +39,28 @@
     document.getElementById("ev-tunis-place").textContent = CONFIG.events.tunis.place[state.lang];
     document.getElementById("lang-fr").classList.toggle("active", state.lang === "fr");
     document.getElementById("lang-en").classList.toggle("active", state.lang === "en");
+    renderTimeline();
+  }
+
+  function renderTimeline() {
+    const section = document.getElementById("timeline");
+    if (!section) return;
+    const items = (CONFIG.timeline && CONFIG.timeline[state.lang]) || [];
+    if (!items.length) { section.classList.add("hidden"); return; }
+    section.classList.remove("hidden");
+    const flower = (i) => `<svg class="w-full h-32" style="color: var(--gold)"><use href="${i % 2 ? "#acacia" : "#olive-branch"}" /></svg>`;
+    section.innerHTML = `
+      <h2 class="serif text-center text-2xl font-semibold mb-8">${esc(t("timelineTitle"))}</h2>
+      <div class="tl">
+        ${items.map((it, i) => `
+          <div class="tl-item">
+            <span class="tl-dot"><svg width="26" height="26" style="color: var(--gold)"><use href="#blossom"/></svg></span>
+            <div class="polaroid ${i % 2 ? "tilt-r" : "tilt-l"}">
+              ${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy">` : flower(i)}
+              <p class="caption">${esc(it.date)}${it.date && it.text ? " · " : ""}${esc(it.text)}</p>
+            </div>
+          </div>`).join("")}
+      </div>`;
   }
   document.getElementById("lang-fr").onclick = () => setLang("fr");
   document.getElementById("lang-en").onclick = () => setLang("en");
@@ -78,6 +100,7 @@
     });
     ["fr", "en"].forEach(l => {
       if (site.tunisDays && site.tunisDays[l] && site.tunisDays[l].length) CONFIG.texts[l].tunisDays = site.tunisDays[l];
+      if (site.timeline && site.timeline[l] && site.timeline[l].length) CONFIG.timeline[l] = site.timeline[l];
     });
   }
 
@@ -335,6 +358,8 @@
       const res = await apiGetGuest(token);
       state.error = null;
       if (!res.ok) { state.error = "bad_token"; render(); return; }
+      // per-guest language from the sheet, unless the visitor already chose one
+      if (res.guest.lang && !localStorage.getItem("lang")) { state.lang = res.guest.lang; renderStatic(); }
       state.guest = res.guest; state.phase = res.phase;
       state.placesLeft = res.placesLeft; state.existing = res.response; state.editable = res.editable;
       if (res.response) { prefill(res.response); state.editableUntil = res.response.editableUntil; }

@@ -14,7 +14,7 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country"];
+var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country", "importance", "lang"];
 var RESP_HEADERS = ["token", "timestamp", "phase", "names", "bretagne", "tunisia", "party_size",
   "early_arrival", "hammam", "soiree", "city", "country", "note", "editable_until", "geo_lat", "geo_lng"];
 
@@ -36,9 +36,9 @@ function setupSheet() {
   var g = ss.getSheetByName("Guests");
   if (g.getLastRow() < 2) {
     g.getRange(2, 1, 3, GUEST_HEADERS.length).setValues([
-      ["test-reg-fr", "Testeur France", "", false, "M", false, false, "Rennes", "France"],
-      ["test-reg-tn", "Testeuse Tunisie", "", false, "F", true, true, "Sousse", "Tunisie"],
-      ["test-vip", "Couple VIP", "", true, "F", true, true, "Berlin", "Germany"]
+      ["test-reg-fr", "Testeur France", "", false, "M", false, false, "Rennes", "France", "", ""],
+      ["test-reg-tn", "Testeuse Tunisie", "", false, "F", true, true, "Tunis", "Tunisie", "", ""],
+      ["test-vip", "Couple VIP", "", true, "F", true, true, "Berlin", "Germany", "", "en"]
     ]);
   }
 }
@@ -91,6 +91,14 @@ function geocodeResponses() {
 }
 
 // ---------- helpers ----------
+function tl(s) {
+  if (!s) return null;
+  return String(s).split("||").map(function (item) {
+    var f = item.split("~");
+    return { date: (f[0] || "").trim(), text: (f[1] || "").trim(), img: (f[2] || "").trim() };
+  });
+}
+
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -175,7 +183,10 @@ function doGet(e) {
             place: { fr: cfg.tunis_place_fr || "", en: cfg.tunis_place_en || "" }
           }
         },
-        tunisDays: { fr: days(cfg.tunis_days_fr), en: days(cfg.tunis_days_en) }
+        tunisDays: { fr: days(cfg.tunis_days_fr), en: days(cfg.tunis_days_en) },
+        // timeline_fr / timeline_en: items separated by "||", fields by "~":
+        // "2019~Notre rencontre~https://photo-url||2026~Fiançailles~"
+        timeline: { fr: tl(cfg.timeline_fr), en: tl(cfg.timeline_en) }
       }
     });
   }
@@ -212,7 +223,8 @@ function doGet(e) {
       name: guest.name,
       vip: guest.vip === true || String(guest.vip).toUpperCase() === "TRUE",
       invitHammam: guest.invit_hammam === true || String(guest.invit_hammam).toUpperCase() === "TRUE",
-      invitSoiree: guest.invit_soiree === true || String(guest.invit_soiree).toUpperCase() === "TRUE"
+      invitSoiree: guest.invit_soiree === true || String(guest.invit_soiree).toUpperCase() === "TRUE",
+      lang: String(guest.lang || "").toLowerCase() === "en" ? "en" : "fr"
     },
     response: respToClient(existing),
     editable: !existing || new Date() <= new Date(existing.editable_until)

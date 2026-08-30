@@ -23,6 +23,13 @@ through a free Google Apps Script acting as the API. No server, no cost.
    - `tunis_place_fr`, `tunis_place_en`
    - `tunis_days_fr`, `tunis_days_en` — program lines separated by `|`,
      e.g. "Premiers jours : traditions|Veille : soirée de la femme|Dernier jour : le mariage"
+   - `timeline_fr`, `timeline_en` (optional) — the "our story" polaroid timeline.
+     Items separated by `||`, fields by `~` (date ~ text ~ photo URL):
+     `2019~Notre rencontre~https://…||2026~Fiançailles~||…`
+     An item without photo shows a botanical ornament instead. Host photos on
+     Google Drive (share "anyone with the link", use
+     `https://drive.google.com/uc?export=view&id=FILE_ID`) so they stay out of
+     the public repo.
 
 ## 2. Deploy the API
 
@@ -52,6 +59,10 @@ and `?g=demo-vip` (VIP) work with fake data — handy to preview the design.
    - `gender` M/F → splits the men's/women's hammam lists in the dashboard.
    - `invit_hammam`, `invit_soiree` TRUE/FALSE → whether the form shows those
      questions. Editable at any time; the form reflects the flags live.
+   - `importance` → free ranking column for your own planning (number or label);
+     the form ignores it, the dashboard shows it.
+   - `lang` → per-guest site language: empty or `fr` = French, `en` = English.
+     The guest can still switch manually on the page.
 2. Leave `token` empty, then run **`generateTokens`** in Apps Script.
 3. Each guest's personal link is `https://<user>.github.io/wedding-planner/?g=<token>`.
    Message templates in [`templates/messages.md`](templates/messages.md).
