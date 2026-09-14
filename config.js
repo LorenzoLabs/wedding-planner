@@ -56,7 +56,7 @@ const CONFIG = {
         "Journées traditionnelles (détails selon votre invitation)",
         "Dernier jour : le mariage"
       ],
-      rules: "Mariage entre adultes : sans enfants, et sans chiens.",
+      rules: "", // note de bas de page facultative, pilotée par la Sheet (Config: rules_fr)
       noToken: "Pour répondre, utilisez le lien personnel que nous vous avons envoyé. Vous ne le retrouvez pas ? Écrivez-nous !",
       badToken: "Ce lien ne semble pas valide. Vérifiez le message que nous vous avons envoyé, ou écrivez-nous.",
       loading: "Chargement…",
@@ -118,7 +118,7 @@ const CONFIG = {
         "Traditional days (details depend on your invitation)",
         "Last day: the wedding"
       ],
-      rules: "Adults-only wedding: no children, no dogs.",
+      rules: "", // optional footer note, driven by the Sheet (Config: rules_en)
       noToken: "To answer, use the personal link we sent you. Can't find it? Message us!",
       badToken: "This link doesn't look valid. Check the message we sent you, or contact us.",
       loading: "Loading…",

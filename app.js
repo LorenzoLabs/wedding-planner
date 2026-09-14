@@ -30,8 +30,13 @@
   function renderStatic() {
     document.documentElement.lang = state.lang;
     document.getElementById("couple").textContent = CONFIG.coupleNames;
-    ["title", "intro", "programTitle", "bretagneTitle", "bretagneDesc", "tunisTitle", "tunisDesc", "rules"]
+    ["title", "intro", "programTitle", "bretagneTitle", "bretagneDesc", "tunisTitle", "tunisDesc"]
       .forEach(k => document.getElementById("t-" + k).textContent = t(k));
+    // the note/rules pill is optional and Sheet-driven: hide it when empty
+    const rulesText = t("rules");
+    const rulesEl = document.getElementById("t-rules");
+    rulesEl.textContent = rulesText;
+    if (rulesEl.parentElement) rulesEl.parentElement.hidden = !rulesText;
     document.getElementById("t-tunisDays").innerHTML = t("tunisDays").map(d => `<li>${esc(d)}</li>`).join("");
     document.getElementById("ev-bretagne-date").textContent = CONFIG.events.bretagne.dateLabel[state.lang];
     document.getElementById("ev-bretagne-place").textContent = CONFIG.events.bretagne.place[state.lang];
@@ -72,6 +77,8 @@
     if (!site) return;
     if (site.coupleNames) CONFIG.coupleNames = site.coupleNames;
     if (site.heroPhoto) CONFIG.heroPhoto = site.heroPhoto;
+    // note/rules message is authoritative from the Sheet (empty = hidden)
+    if (site.rules) ["fr", "en"].forEach(l => { CONFIG.texts[l].rules = site.rules[l] || ""; });
     ["bretagne", "tunis"].forEach(k => {
       const ev = site.events && site.events[k];
       if (!ev) return;

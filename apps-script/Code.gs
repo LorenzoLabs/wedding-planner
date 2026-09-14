@@ -1,6 +1,6 @@
 /**
  * Wedding Planner — Google Apps Script backend.
- * CODE VERSION: 2026-09-14-c  (bump this line whenever you paste new code)
+ * CODE VERSION: 2026-09-14-d  (bump this line whenever you paste new code)
  *
  * Paste this into a script bound to your Google Sheet (Extensions → Apps Script),
  * run setupSheet() once, then Deploy → New deployment → Web app,
@@ -17,7 +17,7 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var VERSION = "2026-09-14-c";
+var VERSION = "2026-09-14-d";
 
 var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country", "importance", "lang", "plus_one", "places"];
 var RESP_HEADERS = ["token", "timestamp", "phase", "names", "bretagne", "tunisia", "party_size",
@@ -344,6 +344,7 @@ function doGet(e) {
           }
         },
         tunisDays: { fr: days(cfg.tunis_days_fr), en: days(cfg.tunis_days_en) },
+        rules: { fr: cfg.rules_fr || "", en: cfg.rules_en || "" },
         // Timeline: prefer the dedicated "Timeline" tab; fall back to the
         // legacy single-cell Config keys timeline_fr / timeline_en.
         timeline: readTimeline() || { fr: tl(cfg.timeline_fr), en: tl(cfg.timeline_en) }
