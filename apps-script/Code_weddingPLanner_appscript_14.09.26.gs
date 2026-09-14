@@ -319,7 +319,6 @@ function doGet(e) {
       ok: true,
       site: {
         coupleNames: cfg.couple_names || "",
-        heroPhoto: driveImg(cfg.hero_photo || ""),
         events: {
           bretagne: {
             date: { fr: cfg.bretagne_date_fr || "", en: cfg.bretagne_date_en || "" },

@@ -39,50 +39,10 @@
     document.getElementById("ev-tunis-place").textContent = CONFIG.events.tunis.place[state.lang];
     document.getElementById("lang-fr").classList.toggle("active", state.lang === "fr");
     document.getElementById("lang-en").classList.toggle("active", state.lang === "en");
-    renderTimeline();
+    const hero = document.getElementById("hero-photo");
+    if (hero) { if (CONFIG.heroPhoto) { hero.src = CONFIG.heroPhoto; hero.hidden = false; } else hero.hidden = true; }
   }
 
-  function renderTimeline() {
-    const section = document.getElementById("timeline");
-    if (!section) return;
-    const items = (CONFIG.timeline && CONFIG.timeline[state.lang]) || [];
-    if (!items.length) { section.classList.add("hidden"); return; }
-    section.classList.remove("hidden");
-    const flower = (i) => `<svg class="w-full h-32" style="color: var(--gold)"><use href="${i % 2 ? "#acacia" : "#olive-branch"}" /></svg>`;
-    const tilts = ["-2.2deg", "1.8deg", "-1.2deg"];
-
-    // Render up to 3 media as a fanned polaroid pile; a lone item is a single polaroid.
-    function mediaPile(media, i, caption) {
-      if (!media || !media.length) {
-        return `<div class="polaroid ${i % 2 ? "tilt-r" : "tilt-l"}">${flower(i)}<p class="caption">${caption}</p></div>`;
-      }
-      const inner = (m) => m.type === "video"
-        ? (m.embed
-            ? `<div class="vid"><iframe src="${esc(m.embed)}" allow="autoplay; encrypted-media" allowfullscreen loading="lazy"></iframe></div>`
-            : `<video src="${esc(m.src)}" controls preload="metadata"></video>`)
-        : `<img src="${esc(m.src)}" alt="" loading="lazy">`;
-      if (media.length === 1) {
-        return `<div class="polaroid ${i % 2 ? "tilt-r" : "tilt-l"}">${inner(media[0])}<p class="caption">${caption}</p></div>`;
-      }
-      return `<div class="pile">
-        ${media.map((m, k) => `<div class="polaroid pile-item" style="transform:rotate(${tilts[k] || "0deg"});z-index:${media.length - k}">
-          ${inner(m)}${k === media.length - 1 ? `<p class="caption">${caption}</p>` : ""}
-        </div>`).join("")}
-      </div>`;
-    }
-
-    section.innerHTML = `
-      <h2 class="serif text-center text-2xl font-semibold mb-8">${esc(t("timelineTitle"))}</h2>
-      <div class="tl">
-        ${items.map((it, i) => {
-          const caption = `${esc(it.date)}${it.date && it.text ? " · " : ""}${esc(it.text)}`;
-          return `<div class="tl-item">
-            <span class="tl-dot"><svg width="26" height="26" style="color: var(--gold)"><use href="#blossom"/></svg></span>
-            ${mediaPile(it.media, i, caption)}
-          </div>`;
-        }).join("")}
-      </div>`;
-  }
   document.getElementById("lang-fr").onclick = () => setLang("fr");
   document.getElementById("lang-en").onclick = () => setLang("en");
   function setLang(l) { state.lang = l; localStorage.setItem("lang", l); renderStatic(); render(); }
@@ -111,6 +71,7 @@
   function applySite(site) {
     if (!site) return;
     if (site.coupleNames) CONFIG.coupleNames = site.coupleNames;
+    if (site.heroPhoto) CONFIG.heroPhoto = site.heroPhoto;
     ["bretagne", "tunis"].forEach(k => {
       const ev = site.events && site.events[k];
       if (!ev) return;
@@ -123,7 +84,6 @@
     });
     ["fr", "en"].forEach(l => {
       if (site.tunisDays && site.tunisDays[l] && site.tunisDays[l].length) CONFIG.texts[l].tunisDays = site.tunisDays[l];
-      if (site.timeline && site.timeline[l] && site.timeline[l].length) CONFIG.timeline[l] = site.timeline[l];
     });
   }
 

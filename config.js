@@ -38,21 +38,9 @@ const CONFIG = {
     }
   },
 
-  // Timeline "our story" — fictional demo; real items come from the Sheet
-  // (Config keys timeline_fr / timeline_en, see SETUP.md). Photos are polaroids;
-  // an item without a photo shows a botanical ornament instead.
-  timeline: {
-    fr: [
-      { date: "2019", text: "Notre rencontre", media: [] },
-      { date: "2026", text: "La demande", media: [] },
-      { date: "2027", text: "Deux mariages, deux pays", media: [] }
-    ],
-    en: [
-      { date: "2019", text: "How we met", media: [] },
-      { date: "2026", text: "The proposal", media: [] },
-      { date: "2027", text: "Two weddings, two countries", media: [] }
-    ]
-  },
+  // Welcome photo shown under the header. Kept out of the public repo: set the
+  // Config key `hero_photo` in the Sheet (a Google Drive share link).
+  heroPhoto: "",
 
   // All user-facing texts, FR + EN.
   texts: {
@@ -60,7 +48,6 @@ const CONFIG = {
       title: "Bienvenue au mariage de",
       intro: "Joignez-vous à nous pour célébrer notre amour.",
       programTitle: "Le programme",
-      timelineTitle: "Notre histoire",
       bretagneTitle: "Bretagne",
       bretagneDesc: "Cérémonie et fête.",
       tunisTitle: "Tunisie",
@@ -120,7 +107,6 @@ const CONFIG = {
       title: "Welcome to the wedding of",
       intro: "Join us in celebrating our love.",
       programTitle: "The program",
-      timelineTitle: "Our story",
       bretagneTitle: "Brittany",
       bretagneDesc: "Ceremony and party.",
       tunisTitle: "Tunisia",
