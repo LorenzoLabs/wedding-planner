@@ -151,7 +151,7 @@
             </tr></thead>
             <tbody>
               ${resp.map(r => `<tr class="border-b border-stone-100">
-                <td class="py-1 pr-3">${r.names || r.token}</td>
+                <td class="py-1 pr-3">${r.names || r.token}${r.plus_one_name ? `<br><span class="text-stone-400 text-xs">+1 : ${r.plus_one_name}${r.plus_one_email ? " · " + r.plus_one_email : ""}</span>` : ""}</td>
                 <td class="pr-3" style="color:${COLORS[choiceOf(r)]}">${choiceLabel(r)}</td>
                 <td class="pr-3">${r.party_size}</td>
                 <td class="pr-3">${r.early_arrival === "early" ? "dès le 9" : r.early_arrival === "weddingOnly" ? "le 12" : ""}</td>

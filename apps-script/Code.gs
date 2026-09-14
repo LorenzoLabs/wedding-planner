@@ -16,7 +16,8 @@
 
 var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country", "importance", "lang", "plus_one", "places"];
 var RESP_HEADERS = ["token", "timestamp", "phase", "names", "bretagne", "tunisia", "party_size",
-  "early_arrival", "hammam", "soiree", "city", "country", "note", "editable_until", "geo_lat", "geo_lng"];
+  "early_arrival", "hammam", "soiree", "city", "country", "note", "editable_until", "geo_lat", "geo_lng",
+  "plus_one_name", "plus_one_email"];
 
 // ---------- one-time setup ----------
 function setupSheet() {
@@ -304,6 +305,7 @@ function respToClient(r) {
     names: r.names, bretagne: r.bretagne, tunisia: r.tunisia, partySize: Number(r.party_size) || 1,
     earlyArrival: r.early_arrival, hammam: r.hammam, soiree: r.soiree,
     city: r.city, country: r.country, note: r.note,
+    plusOneName: r.plus_one_name || "", plusOneEmail: r.plus_one_email || "",
     editableUntil: r.editable_until ? new Date(r.editable_until).toISOString() : null
   };
 }
@@ -408,6 +410,10 @@ function doPost(e) {
   var earlyArrival = tunisia === "yes" && ["early", "weddingOnly"].indexOf(body.earlyArrival) >= 0 ? body.earlyArrival : "";
   var hammam = tunisia === "yes" && hasHammam ? yn(body.hammam) : "";
   var soiree = tunisia === "yes" && hasSoiree ? yn(body.soiree) : "";
+  // +1 name/email captured only when this guest is allowed a +1 and brought one
+  var plusOneOn = body.plusOne === true && hasPlusOne;
+  var plusOneName = plusOneOn ? String(body.plusOneName || "").slice(0, 200) : "";
+  var plusOneEmail = plusOneOn ? String(body.plusOneEmail || "").slice(0, 200) : "";
 
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -438,7 +444,7 @@ function doPost(e) {
     var row = [String(body.token).trim(), now, phase, String(body.names || guest.name).slice(0, 300),
       bretagne, tunisia, partySize, earlyArrival, hammam, soiree,
       String(body.city || "").slice(0, 100), String(body.country || "").slice(0, 100),
-      String(body.note || "").slice(0, 1000), editableUntil, "", ""];
+      String(body.note || "").slice(0, 1000), editableUntil, "", "", plusOneName, plusOneEmail];
 
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Responses");
     if (existing) {

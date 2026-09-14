@@ -16,7 +16,7 @@
     placesLeft: null, // {bretagne, tunis} or null
     existing: null,   // previous response or null
     editable: true,
-    answers: { plusOne: false, partySize: 1, city: "", country: "", bretagne: "", tunisia: "", earlyArrival: "", hammam: "", soiree: "", note: "" }
+    answers: { plusOne: false, plusOneName: "", plusOneEmail: "", partySize: 1, city: "", country: "", bretagne: "", tunisia: "", earlyArrival: "", hammam: "", soiree: "", note: "" }
   };
 
   const t = (k) => CONFIG.texts[state.lang][k];
@@ -147,10 +147,14 @@
     const seats = state.guest.seats || 1;
     const seatsInfo = seats >= 2 ? `<p class="text-sm mb-3 bg-stone-100 rounded-lg p-2">${esc(t("seatsInfo").replace("{n}", seats))}</p>` : "";
     const plusOne = state.guest.plusOne ? `
-      <label class="flex items-center gap-2 mb-4 cursor-pointer">
+      <label class="flex items-center gap-2 mb-3 cursor-pointer">
         <input id="f-plusone" type="checkbox" class="w-4 h-4" ${a.plusOne ? "checked" : ""}>
         <span>${esc(t("plusOneLabel"))}</span>
-      </label>` : "";
+      </label>
+      <div id="f-plusone-fields" class="mb-4 pl-6 space-y-2 ${a.plusOne ? "" : "hidden"}">
+        <input id="f-po-name" class="w-full border border-stone-300 rounded-lg p-2" placeholder="${esc(t("plusOneNameLabel"))}" value="${esc(a.plusOneName || "")}">
+        <input id="f-po-email" type="email" class="w-full border border-stone-300 rounded-lg p-2" placeholder="${esc(t("plusOneEmailLabel"))}" value="${esc(a.plusOneEmail || "")}">
+      </div>` : "";
     return `${title}${seatsInfo}${plusOne}
       <div class="grid grid-cols-2 gap-3">
         <div><label class="block text-sm mb-1">${esc(t("cityLabel"))}</label>
@@ -247,7 +251,9 @@
     if (!parts.length) parts.push(t("choiceDecline"));
     const guests = parts.join(" + ");
     const n = r.partySize || 1;
-    return n >= 2 ? `${guests} · ${n} ${t("peopleShort")}` : guests;
+    let out = n >= 2 ? `${guests} · ${n} ${t("peopleShort")}` : guests;
+    if (r.plusOneName) out += ` · +1 : ${r.plusOneName}`;
+    return out;
   }
 
   // ---------- step bindings & validation ----------
@@ -269,6 +275,11 @@
       state.answers[f] = v;
       render();
     });
+    const po = document.getElementById("f-plusone");
+    if (po) po.onchange = () => {
+      const f = document.getElementById("f-plusone-fields");
+      if (f) f.classList.toggle("hidden", !po.checked);
+    };
     const next = document.getElementById("next");
     if (next) next.onclick = onNext;
     const send = document.getElementById("send");
@@ -283,6 +294,11 @@
       const po = document.getElementById("f-plusone");
       a.plusOne = state.guest.plusOne && po ? po.checked : false;
       a.partySize = (state.guest.seats || 1) + (a.plusOne ? 1 : 0);
+      if (a.plusOne) {
+        a.plusOneName = (document.getElementById("f-po-name").value || "").trim();
+        a.plusOneEmail = (document.getElementById("f-po-email").value || "").trim();
+        if (!a.plusOneName) return err(t("plusOneNameRequired"));
+      } else { a.plusOneName = ""; a.plusOneEmail = ""; }
       a.city = document.getElementById("f-city").value.trim();
       a.country = document.getElementById("f-country").value.trim();
       if (!a.city || !a.country) return err(t("required"));
@@ -304,7 +320,9 @@
   function payload() {
     const a = state.answers;
     return {
-      token, names: state.guest.name, partySize: a.partySize, plusOne: !!a.plusOne, city: a.city, country: a.country,
+      token, names: state.guest.name, partySize: a.partySize, plusOne: !!a.plusOne,
+      plusOneName: a.plusOne ? a.plusOneName : "", plusOneEmail: a.plusOne ? a.plusOneEmail : "",
+      city: a.city, country: a.country,
       bretagne: a.bretagne || "no", tunisia: a.tunisia || "no",
       earlyArrival: a.tunisia === "yes" ? a.earlyArrival : "",
       hammam: a.tunisia === "yes" && state.guest.invitHammam ? a.hammam : "",
@@ -334,6 +352,7 @@
   function prefill(r) {
     const a = state.answers;
     a.partySize = r.partySize || 1; a.plusOne = (r.partySize || 1) > (state.guest.seats || 1); a.city = r.city || ""; a.country = r.country || "";
+    a.plusOneName = r.plusOneName || ""; a.plusOneEmail = r.plusOneEmail || "";
     a.bretagne = r.bretagne || ""; a.tunisia = r.tunisia || "";
     if (!state.guest.vip) a._single = r.bretagne === "yes" ? "bretagne" : r.tunisia === "yes" ? "tunis" : (r.bretagne === "no" && r.tunisia === "no" ? "decline" : "");
     a.earlyArrival = r.earlyArrival || ""; a.hammam = r.hammam || ""; a.soiree = r.soiree || ""; a.note = r.note || "";
