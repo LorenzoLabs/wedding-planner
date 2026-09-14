@@ -114,9 +114,11 @@
     ["bretagne", "tunis"].forEach(k => {
       const ev = site.events && site.events[k];
       if (!ev) return;
+      const descKey = k === "bretagne" ? "bretagneDesc" : "tunisDesc";
       ["fr", "en"].forEach(l => {
         if (ev.date && ev.date[l]) CONFIG.events[k].dateLabel[l] = ev.date[l];
         if (ev.place && ev.place[l]) CONFIG.events[k].place[l] = ev.place[l];
+        if (ev.desc && ev.desc[l]) CONFIG.texts[l][descKey] = ev.desc[l];
       });
     });
     ["fr", "en"].forEach(l => {
@@ -214,9 +216,9 @@
     const a = state.answers;
     let body;
     if (state.guest.vip) {
-      const labels = { yes: t("vipYes"), maybe: t("vipMaybe"), no: t("vipNo") };
-      const yn = (field) => ["yes", "maybe", "no"].map(v => `
-        <button class="btn-choice px-3 py-2 rounded-lg border border-stone-300 ${a[field] === v ? "selected" : ""}"
+      const labels = { yes: t("vipYes"), no: t("vipNo") };
+      const yn = (field) => ["yes", "no"].map(v => `
+        <button class="btn-choice px-4 py-2 rounded-lg border border-stone-300 ${a[field] === v ? "selected" : ""}"
           data-set="${field}:${v}">${esc(labels[v])}</button>`).join("");
       body = `<p class="mb-3">${esc(t("vipIntro"))}</p>
         <div class="mb-4"><p class="font-medium mb-2">${esc(evLabel("bretagne"))} ${placesBadge("bretagne")}</p><div class="flex gap-2">${yn("bretagne")}</div></div>
@@ -275,14 +277,13 @@
   function summaryOf(r) {
     const parts = [];
     if (r.bretagne === "yes") parts.push(evLabel("bretagne"));
-    else if (r.bretagne === "maybe") parts.push(`${evLabel("bretagne")} (${t("maybeShort")})`);
     if (r.tunisia === "yes") {
       let s = evLabel("tunis");
       if (r.earlyArrival) s += r.earlyArrival === "early" ? ` · ${t("earlyYes")}` : ` · ${t("earlyNo")}`;
       if (r.hammam === "yes") s += " · hammam ✓";
       if (r.soiree === "yes") s += state.lang === "fr" ? " · soirée ✓" : " · ceremony ✓";
       parts.push(s);
-    } else if (r.tunisia === "maybe") parts.push(`${evLabel("tunis")} (${t("maybeShort")})`);
+    }
     if (!parts.length) parts.push(t("choiceDecline"));
     const guests = parts.join(" + ");
     const n = r.partySize || 1;

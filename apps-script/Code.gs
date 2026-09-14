@@ -322,11 +322,13 @@ function doGet(e) {
         events: {
           bretagne: {
             date: { fr: cfg.bretagne_date_fr || "", en: cfg.bretagne_date_en || "" },
-            place: { fr: cfg.bretagne_place_fr || "", en: cfg.bretagne_place_en || "" }
+            place: { fr: cfg.bretagne_place_fr || "", en: cfg.bretagne_place_en || "" },
+            desc: { fr: cfg.bretagne_desc_fr || "", en: cfg.bretagne_desc_en || "" }
           },
           tunis: {
             date: { fr: cfg.tunis_date_fr || "", en: cfg.tunis_date_en || "" },
-            place: { fr: cfg.tunis_place_fr || "", en: cfg.tunis_place_en || "" }
+            place: { fr: cfg.tunis_place_fr || "", en: cfg.tunis_place_en || "" },
+            desc: { fr: cfg.tunis_desc_fr || "", en: cfg.tunis_desc_en || "" }
           }
         },
         tunisDays: { fr: days(cfg.tunis_days_fr), en: days(cfg.tunis_days_en) },
@@ -394,10 +396,7 @@ function doPost(e) {
   var hasSoiree = guest.invit_soiree === true || String(guest.invit_soiree).toUpperCase() === "TRUE";
 
   var yn = function (v) { return v === "yes" ? "yes" : "no"; };
-  // VIP guests may leave an event undecided ("maybe"); regular guests are yes/no.
-  var ynm = function (v) { return v === "yes" ? "yes" : v === "maybe" ? "maybe" : "no"; };
-  var bretagne = isVip ? ynm(body.bretagne) : yn(body.bretagne);
-  var tunisia = isVip ? ynm(body.tunisia) : yn(body.tunisia);
+  var bretagne = yn(body.bretagne), tunisia = yn(body.tunisia);
   if (!isVip && bretagne === "yes" && tunisia === "yes") return json({ ok: false, error: "not_vip" });
 
   // Base party size comes from the sheet ("places", e.g. 2 for a couple); an
