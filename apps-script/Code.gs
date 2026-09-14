@@ -1,5 +1,7 @@
 /**
  * Wedding Planner — Google Apps Script backend.
+ * CODE VERSION: 2026-09-14-c  (bump this line whenever you paste new code)
+ *
  * Paste this into a script bound to your Google Sheet (Extensions → Apps Script),
  * run setupSheet() once, then Deploy → New deployment → Web app,
  * "Execute as: Me", "Who has access: Anyone". See SETUP.md.
@@ -7,12 +9,15 @@
  * API:
  *   GET  ?g=TOKEN     → guest info + current answer + places left
  *   GET  ?site=1      → public site texts (couple names, dates, places) from Config
+ *   GET  ?ping=1      → { ok, version } to confirm which code is deployed
  *   GET  ?admin=KEY   → full dump for the dashboard
  *   POST (JSON body)  → create/update a response (24h edit window, capacity lock)
  *
  * Personal data (names, dates, venues) lives ONLY in the Sheet, never in the
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
+
+var VERSION = "2026-09-14-c";
 
 var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country", "importance", "lang", "plus_one", "places"];
 var RESP_HEADERS = ["token", "timestamp", "phase", "names", "bretagne", "tunisia", "party_size",
@@ -313,6 +318,9 @@ function respToClient(r) {
 // ---------- GET ----------
 function doGet(e) {
   var p = (e && e.parameter) || {};
+
+  if (p.ping) return json({ ok: true, version: VERSION });
+
   var cfg = getConfig();
 
   if (p.site) {
@@ -320,6 +328,7 @@ function doGet(e) {
     return json({
       ok: true,
       site: {
+        version: VERSION,
         coupleNames: cfg.couple_names || "",
         heroPhoto: driveImg(cfg.hero_photo || ""),
         events: {
