@@ -1,6 +1,6 @@
 /**
  * Wedding Planner — Google Apps Script backend.
- * CODE VERSION: 2026-09-14-d  (bump this line whenever you paste new code)
+ * CODE VERSION: 2026-09-17-b  (bump this line whenever you paste new code)
  *
  * Paste this into a script bound to your Google Sheet (Extensions → Apps Script),
  * run setupSheet() once, then Deploy → New deployment → Web app,
@@ -17,9 +17,14 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var VERSION = "2026-09-17-a";
+var VERSION = "2026-09-17-b";
 
-var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country", "importance", "lang", "plus_one", "places", "invit_tunisie"];
+// Columns are read BY POSITION (A, B, C… in this order), not by the header text
+// in row 1. So this list must match the physical column order of the Guests tab.
+// A token · B name · C contact · D vip · E gender · F invit_tunisie · G invit_soiree
+// · H city · I country · J importance · K lang · L plus_one · M places.
+// Column N ("lien", a display formula) sits OUTSIDE this list and is never read.
+var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_tunisie", "invit_soiree", "city", "country", "importance", "lang", "plus_one", "places"];
 var RESP_HEADERS = ["token", "timestamp", "phase", "names", "bretagne", "tunisia", "party_size",
   "early_arrival", "hammam", "soiree", "city", "country", "note", "editable_until", "geo_lat", "geo_lng",
   "plus_one_name", "plus_one_email"];
@@ -384,7 +389,6 @@ function doGet(e) {
     guest: {
       name: guest.name,
       vip: guest.vip === true || String(guest.vip).toUpperCase() === "TRUE",
-      invitHammam: guest.invit_hammam === true || String(guest.invit_hammam).toUpperCase() === "TRUE",
       invitSoiree: guest.invit_soiree === true || String(guest.invit_soiree).toUpperCase() === "TRUE",
       lang: String(guest.lang || "").toLowerCase() === "en" ? "en" : "fr",
       plusOne: guest.plus_one === true || String(guest.plus_one).toUpperCase() === "TRUE",
@@ -407,8 +411,6 @@ function doPost(e) {
   var guest = findGuest(body.token);
   if (!guest) return json({ ok: false, error: "bad_token" });
   var isVip = guest.vip === true || String(guest.vip).toUpperCase() === "TRUE";
-  var hasHammam = guest.invit_hammam === true || String(guest.invit_hammam).toUpperCase() === "TRUE";
-  var hasSoiree = guest.invit_soiree === true || String(guest.invit_soiree).toUpperCase() === "TRUE";
 
   var yn = function (v) { return v === "yes" ? "yes" : "no"; };
   var bretagne = yn(body.bretagne), tunisia = yn(body.tunisia);
