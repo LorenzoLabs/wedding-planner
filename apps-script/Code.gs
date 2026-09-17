@@ -17,9 +17,9 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var VERSION = "2026-09-14-d";
+var VERSION = "2026-09-17-a";
 
-var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country", "importance", "lang", "plus_one", "places"];
+var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_hammam", "invit_soiree", "city", "country", "importance", "lang", "plus_one", "places", "invit_tunisie"];
 var RESP_HEADERS = ["token", "timestamp", "phase", "names", "bretagne", "tunisia", "party_size",
   "early_arrival", "hammam", "soiree", "city", "country", "note", "editable_until", "geo_lat", "geo_lng",
   "plus_one_name", "plus_one_email"];
@@ -345,6 +345,7 @@ function doGet(e) {
         },
         tunisDays: { fr: days(cfg.tunis_days_fr), en: days(cfg.tunis_days_en) },
         rules: { fr: cfg.rules_fr || "", en: cfg.rules_en || "" },
+        tunisiePageUrl: cfg.tunisie_page_url || "",
         // Timeline: prefer the dedicated "Timeline" tab; fall back to the
         // legacy single-cell Config keys timeline_fr / timeline_en.
         timeline: readTimeline() || { fr: tl(cfg.timeline_fr), en: tl(cfg.timeline_en) }
@@ -387,7 +388,8 @@ function doGet(e) {
       invitSoiree: guest.invit_soiree === true || String(guest.invit_soiree).toUpperCase() === "TRUE",
       lang: String(guest.lang || "").toLowerCase() === "en" ? "en" : "fr",
       plusOne: guest.plus_one === true || String(guest.plus_one).toUpperCase() === "TRUE",
-      seats: Math.max(1, parseInt(guest.places, 10) || 1)
+      seats: Math.max(1, parseInt(guest.places, 10) || 1),
+      invitTunisie: guest.invit_tunisie === true || String(guest.invit_tunisie).toUpperCase() === "TRUE"
     },
     response: respToClient(existing),
     editable: phase !== "rsvp" || !existing || new Date() <= new Date(existing.editable_until)
@@ -418,8 +420,8 @@ function doPost(e) {
   var seats = Math.max(1, parseInt(guest.places, 10) || 1);
   var partySize = Math.max(1, Math.min(12, seats + (body.plusOne === true && hasPlusOne ? 1 : 0)));
   var earlyArrival = tunisia === "yes" && ["early", "weddingOnly"].indexOf(body.earlyArrival) >= 0 ? body.earlyArrival : "";
-  var hammam = tunisia === "yes" && hasHammam ? yn(body.hammam) : "";
-  var soiree = tunisia === "yes" && hasSoiree ? yn(body.soiree) : "";
+  var hammam = ""; // hammam dropped from the program
+  var soiree = tunisia === "yes" ? yn(body.soiree) : ""; // everyone attending Tunisia is invited to the soirée
   // +1 name/email captured only when this guest is allowed a +1 and brought one
   var plusOneOn = body.plusOne === true && hasPlusOne;
   var plusOneName = plusOneOn ? String(body.plusOneName || "").slice(0, 200) : "";

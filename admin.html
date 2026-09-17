@@ -81,13 +81,9 @@
       const answeredTokens = new Set(resp.map(r => String(r.token).trim()));
       const noAnswer = data.guests.filter(g => !answeredTokens.has(String(g.token).trim()));
 
-      const sub = {
-        hammamM: [], hammamF: [], soiree: [], mariageTn: []
-      };
+      const sub = { soiree: [], mariageTn: [] };
       resp.forEach(r => {
-        const g = guestBy[String(r.token).trim()] || {};
         if (isYes(r.tunisia)) sub.mariageTn.push(r);
-        if (isYes(r.hammam)) (String(g.gender).toUpperCase() === "F" ? sub.hammamF : sub.hammamM).push(r);
         if (isYes(r.soiree)) sub.soiree.push(r);
       });
       const people = list => list.reduce((s, r) => s + (Number(r.party_size) || 0), 0);
@@ -124,14 +120,6 @@
 
         <div class="grid sm:grid-cols-2 gap-4 mb-6">
           <div class="bg-white rounded-xl shadow p-4">
-            <h3 class="font-semibold mb-2">Hammam hommes (${people(sub.hammamM)} pers.)</h3>
-            <ul class="list-disc list-inside">${nameList(sub.hammamM)}</ul>
-          </div>
-          <div class="bg-white rounded-xl shadow p-4">
-            <h3 class="font-semibold mb-2">Hammam femmes (${people(sub.hammamF)} pers.)</h3>
-            <ul class="list-disc list-inside">${nameList(sub.hammamF)}</ul>
-          </div>
-          <div class="bg-white rounded-xl shadow p-4">
             <h3 class="font-semibold mb-2">Soirée de la femme (${people(sub.soiree)} pers.)</h3>
             <ul class="list-disc list-inside">${nameList(sub.soiree)}</ul>
           </div>
@@ -146,7 +134,7 @@
           <table class="w-full text-left">
             <thead><tr class="border-b text-stone-500">
               <th class="py-1 pr-3">Invité</th><th class="pr-3">Choix</th><th class="pr-3">Adultes</th>
-              <th class="pr-3">Arrivée TN</th><th class="pr-3">Hammam</th><th class="pr-3">Soirée</th>
+              <th class="pr-3">Arrivée TN</th><th class="pr-3">Soirée</th>
               <th class="pr-3">Ville</th><th>Note</th>
             </tr></thead>
             <tbody>
@@ -155,7 +143,7 @@
                 <td class="pr-3" style="color:${COLORS[choiceOf(r)]}">${choiceLabel(r)}</td>
                 <td class="pr-3">${r.party_size}</td>
                 <td class="pr-3">${r.early_arrival === "early" ? "dès le 9" : r.early_arrival === "weddingOnly" ? "le 12" : ""}</td>
-                <td class="pr-3">${r.hammam || ""}</td><td class="pr-3">${r.soiree || ""}</td>
+                <td class="pr-3">${r.soiree || ""}</td>
                 <td class="pr-3">${r.city || ""}, ${r.country || ""}</td>
                 <td class="text-stone-500">${r.note || ""}</td>
               </tr>`).join("")}

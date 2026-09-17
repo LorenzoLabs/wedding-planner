@@ -46,6 +46,22 @@
     document.getElementById("lang-en").classList.toggle("active", state.lang === "en");
     const hero = document.getElementById("hero-photo");
     if (hero) { if (CONFIG.heroPhoto) { hero.src = CONFIG.heroPhoto; hero.hidden = false; } else hero.hidden = true; }
+    renderTunisieCta();
+  }
+
+  // The Tunisia presentation button appears only for guests invited to Tunisia
+  // (VIP or invit_tunisie) once the guest is known and a URL is configured.
+  function renderTunisieCta() {
+    const sec = document.getElementById("tunisie-cta");
+    if (!sec) return;
+    const invited = state.guest && (state.guest.vip || state.guest.invitTunisie);
+    if (!invited || !CONFIG.tunisiePageUrl) { sec.hidden = true; return; }
+    document.getElementById("cta-title").textContent = t("tunisieCtaTitle");
+    document.getElementById("cta-text").textContent = t("tunisieCtaText");
+    const link = document.getElementById("cta-link");
+    link.textContent = t("tunisieCtaBtn");
+    link.href = CONFIG.tunisiePageUrl;
+    sec.hidden = false;
   }
 
   document.getElementById("lang-fr").onclick = () => setLang("fr");
@@ -77,6 +93,7 @@
     if (!site) return;
     if (site.coupleNames) CONFIG.coupleNames = site.coupleNames;
     if (site.heroPhoto) CONFIG.heroPhoto = site.heroPhoto;
+    if (site.tunisiePageUrl) CONFIG.tunisiePageUrl = site.tunisiePageUrl;
     // note/rules message is authoritative from the Sheet (empty = hidden)
     if (site.rules) ["fr", "en"].forEach(l => { CONFIG.texts[l].rules = site.rules[l] || ""; });
     ["bretagne", "tunis"].forEach(k => {
@@ -95,8 +112,8 @@
   }
 
   function demoGet(tok) {
-    if (tok === "demo-vip") return { ok: true, phase: "rsvp", placesLeft: { bretagne: 12, tunis: 3 }, editable: true, response: null, guest: { name: "Ava & Sam Demo", vip: true, invitHammam: true, invitSoiree: true, plusOne: false, seats: 2 } };
-    if (tok === "demo") return { ok: true, phase: "poll", placesLeft: null, editable: true, response: null, guest: { name: "Alex Demo", vip: false, invitHammam: false, invitSoiree: true, plusOne: true, seats: 1 } };
+    if (tok === "demo-vip") return { ok: true, phase: "rsvp", placesLeft: { bretagne: 12, tunis: 3 }, editable: true, response: null, guest: { name: "Ava & Sam Demo", vip: true, invitHammam: false, invitSoiree: true, plusOne: false, seats: 2, invitTunisie: true } };
+    if (tok === "demo") return { ok: true, phase: "poll", placesLeft: null, editable: true, response: null, guest: { name: "Alex Demo", vip: false, invitHammam: false, invitSoiree: true, plusOne: true, seats: 1, invitTunisie: false } };
     return { ok: false, error: "bad_token" };
   }
 
@@ -107,6 +124,7 @@
     if (state.error === "loading") { $rsvp.innerHTML = `<p class="text-center">${esc(t("loading"))}</p>`; return; }
     if (state.error === "generic") { $rsvp.innerHTML = `<p class="text-center">${esc(t("errGeneric"))}</p>`; return; }
     if (!state.guest) return;
+    renderTunisieCta();
 
     if (state.step === 6) { renderSuccess(); return; }
 
@@ -219,8 +237,7 @@
           <button class="btn-choice w-full text-left px-4 py-2 rounded-lg border border-stone-300 mb-2 ${a.earlyArrival === v ? "selected" : ""}"
             data-set="earlyArrival:${v}">${esc(l)}</button>`).join("")}
       </div>
-      ${state.guest.invitHammam ? yn("hammam", t("hammamQ")) : ""}
-      ${state.guest.invitSoiree ? yn("soiree", t("soireeQ")) : ""}
+      ${yn("soiree", t("soireeQ"))}
       <p id="f-err" class="text-sm text-red-600 mt-2 hidden"></p>${navButtons(3)}`;
   }
 
@@ -251,7 +268,6 @@
     if (r.tunisia === "yes") {
       let s = evLabel("tunis");
       if (r.earlyArrival) s += r.earlyArrival === "early" ? ` · ${t("earlyYes")}` : ` · ${t("earlyNo")}`;
-      if (r.hammam === "yes") s += " · hammam ✓";
       if (r.soiree === "yes") s += state.lang === "fr" ? " · soirée ✓" : " · ceremony ✓";
       parts.push(s);
     }
@@ -318,8 +334,7 @@
     }
     if (state.step === 4) {
       if (!a.earlyArrival) return err(t("required"));
-      if (state.guest.invitHammam && !a.hammam) return err(t("required"));
-      if (state.guest.invitSoiree && !a.soiree) return err(t("required"));
+      if (!a.soiree) return err(t("required"));
       return go(5);
     }
   }
@@ -332,8 +347,7 @@
       city: a.city, country: a.country,
       bretagne: a.bretagne || "no", tunisia: a.tunisia || "no",
       earlyArrival: a.tunisia === "yes" ? a.earlyArrival : "",
-      hammam: a.tunisia === "yes" && state.guest.invitHammam ? a.hammam : "",
-      soiree: a.tunisia === "yes" && state.guest.invitSoiree ? a.soiree : "",
+      soiree: a.tunisia === "yes" ? a.soiree : "",
       note: a.note
     };
   }
