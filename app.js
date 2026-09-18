@@ -51,19 +51,16 @@
     renderTunisieCta();
   }
 
-  // The Tunisia presentation button appears only for guests invited to Tunisia
-  // (VIP or invit_tunisie) once the guest is known and a URL is configured.
+  // The "see the presentation" button in the Tunisia program card appears only
+  // for guests invited there (VIP or invit_tunisie) once a URL is configured.
   function renderTunisieCta() {
-    const sec = document.getElementById("tunisie-cta");
-    if (!sec) return;
-    const invited = state.guest && (state.guest.vip || state.guest.invitTunisie);
-    if (!invited || !CONFIG.tunisiePageUrl) { sec.hidden = true; return; }
-    document.getElementById("cta-title").textContent = t("tunisieCtaTitle");
-    document.getElementById("cta-text").textContent = t("tunisieCtaText");
     const link = document.getElementById("cta-link");
+    if (!link) return;
+    const invited = state.guest && (state.guest.vip || state.guest.invitTunisie);
+    if (!invited || !CONFIG.tunisiePageUrl) { link.hidden = true; return; }
     link.textContent = t("tunisieCtaBtn");
     link.href = CONFIG.tunisiePageUrl;
-    sec.hidden = false;
+    link.hidden = false;
   }
 
   document.getElementById("lang-fr").onclick = () => setLang("fr");
