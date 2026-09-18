@@ -1,6 +1,6 @@
 /**
  * Wedding Planner — Google Apps Script backend.
- * CODE VERSION: 2026-09-17-b  (bump this line whenever you paste new code)
+ * CODE VERSION: 2026-09-18-a  (bump this line whenever you paste new code)
  *
  * Paste this into a script bound to your Google Sheet (Extensions → Apps Script),
  * run setupSheet() once, then Deploy → New deployment → Web app,
@@ -17,7 +17,7 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var VERSION = "2026-09-17-b";
+var VERSION = "2026-09-18-a";
 
 // Columns are read BY POSITION (A, B, C… in this order), not by the header text
 // in row 1. So this list must match the physical column order of the Guests tab.
@@ -104,27 +104,41 @@ function generateTokens() {
 }
 
 // Geocode responses missing lat/lng (Nominatim, 1 req/s). Run manually when needed.
-function geocodeResponses() {
+// "city, country" -> { lat, lng } via OpenStreetMap Nominatim, or null when
+// the place is unknown or the service fails. Nominatim asks for max 1 req/s.
+function geocodeCity(city, country) {
+  if (!city) return null;
+  var q = encodeURIComponent(city + (country ? ", " + country : ""));
+  try {
+    var res = UrlFetchApp.fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + q,
+      { headers: { "User-Agent": "wedding-planner-rsvp" }, muteHttpExceptions: true });
+    var arr = JSON.parse(res.getContentText());
+    if (arr.length) return { lat: Number(arr[0].lat), lng: Number(arr[0].lon) };
+  } catch (e) { /* unknown place or network hiccup: leave empty, retried later */ }
+  return null;
+}
+
+// Fill missing geo_lat/geo_lng on Responses. New answers are geocoded when
+// submitted; this backfills older rows. `limit` caps the work per call so the
+// dashboard (which calls it) stays quick; run it with no argument from the
+// editor to do everything at once.
+function geocodeResponses(limit) {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Responses");
   var n = sh.getLastRow() - 1;
-  if (n < 1) return;
+  if (n < 1) return 0;
   var data = sh.getRange(2, 1, n, RESP_HEADERS.length).getValues();
   var cCity = RESP_HEADERS.indexOf("city"), cCountry = RESP_HEADERS.indexOf("country");
   var cLat = RESP_HEADERS.indexOf("geo_lat"), cLng = RESP_HEADERS.indexOf("geo_lng");
+  var done = 0;
   for (var i = 0; i < n; i++) {
     if (data[i][cLat] || !data[i][cCity]) continue;
-    var q = encodeURIComponent(data[i][cCity] + ", " + data[i][cCountry]);
-    try {
-      var res = UrlFetchApp.fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + q,
-        { headers: { "User-Agent": "wedding-planner-rsvp" }, muteHttpExceptions: true });
-      var arr = JSON.parse(res.getContentText());
-      if (arr.length) {
-        sh.getRange(i + 2, cLat + 1).setValue(arr[0].lat);
-        sh.getRange(i + 2, cLng + 1).setValue(arr[0].lon);
-      }
-    } catch (e) { /* skip, retry next run */ }
-    Utilities.sleep(1100);
+    if (limit && done >= limit) break;
+    if (done) Utilities.sleep(1100);
+    var geo = geocodeCity(data[i][cCity], data[i][cCountry]);
+    done++;
+    if (geo) sh.getRange(i + 2, cLat + 1, 1, 2).setValues([[geo.lat, geo.lng]]);
   }
+  return done;
 }
 
 // Timeline schema v2: auto-sorted by an ISO date, up to 3 media (photo/video) per row.
@@ -360,6 +374,8 @@ function doGet(e) {
 
   if (p.admin) {
     if (String(p.admin) !== String(cfg.admin_key)) return json({ ok: false, error: "bad_key" });
+    // catch up on answers that still lack map coordinates (a few per load)
+    try { geocodeResponses(6); } catch (e) { /* map pins can wait */ }
     return json({
       ok: true,
       phase: cfg.phase,
@@ -464,6 +480,13 @@ function doPost(e) {
     if (existing) {
       // keep any geocoding already done if the city didn't change
       if (existing.city === row[10] && existing.geo_lat) { row[14] = existing.geo_lat; row[15] = existing.geo_lng; }
+    }
+    // pin the answer on the dashboard map right away
+    if (!row[14] && row[10]) {
+      var geo = geocodeCity(row[10], row[11]);
+      if (geo) { row[14] = geo.lat; row[15] = geo.lng; }
+    }
+    if (existing) {
       sh.getRange(existing._row, 1, 1, RESP_HEADERS.length).setValues([row]);
     } else {
       sh.appendRow(row);
