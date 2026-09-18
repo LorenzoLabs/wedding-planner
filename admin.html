@@ -22,6 +22,7 @@
     const out = document.getElementById("out");
     const key = new URLSearchParams(location.search).get("key");
     const COLORS = { bretagne: "#2563eb", tunis: "#ea580c", both: "#7c3aed", declined: "#9ca3af" };
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
     async function fetchData() {
       if (!CONFIG.gasUrl) return demoData();
@@ -36,15 +37,15 @@
       return {
         ok: true, phase: "rsvp", capacities: { bretagne: 80, tunis: 120 },
         guests: [
-          { token: "a", name: "Alex Demo", vip: false, gender: "M", invit_hammam: false, invit_soiree: true },
-          { token: "b", name: "Rim Demo", vip: false, gender: "F", invit_hammam: true, invit_soiree: true },
-          { token: "c", name: "Couple VIP Demo", vip: true, gender: "F", invit_hammam: true, invit_soiree: true },
-          { token: "d", name: "Sans Réponse", vip: false, gender: "M", invit_hammam: false, invit_soiree: false }
+          { token: "a", name: "Alex Demo", vip: false, gender: "M", invit_tunisie: false, side: "Alex" },
+          { token: "b", name: "Rim Demo", vip: false, gender: "F", invit_tunisie: true, side: "Sam" },
+          { token: "c", name: "Couple VIP Demo", vip: true, gender: "F", invit_tunisie: true, side: "Sam" },
+          { token: "d", name: "Sans Réponse", vip: false, gender: "M", invit_tunisie: false, side: "Alex" }
         ],
         responses: [
-          { token: "a", phase: "rsvp", names: "Alex Demo", bretagne: "yes", tunisia: "no", party_size: 2, city: "Rennes", country: "France", geo_lat: 48.11, geo_lng: -1.68, hammam: "", soiree: "", early_arrival: "" },
-          { token: "b", phase: "rsvp", names: "Rim Demo", bretagne: "no", tunisia: "yes", party_size: 1, city: "Tunis", country: "Tunisie", geo_lat: 36.8, geo_lng: 10.18, hammam: "yes", soiree: "yes", early_arrival: "early" },
-          { token: "c", phase: "rsvp", names: "Couple VIP Demo", bretagne: "yes", tunisia: "yes", party_size: 2, city: "Berlin", country: "Germany", geo_lat: 52.52, geo_lng: 13.40, hammam: "no", soiree: "yes", early_arrival: "early" }
+          { token: "a", phase: "rsvp", names: "Alex Demo", email: "alex@example.com", bretagne: "yes", tunisia: "no", party_size: 2, city: "Rennes", country: "France", geo_lat: 48.11, geo_lng: -1.68, soiree: "", early_arrival: "" },
+          { token: "b", phase: "rsvp", names: "Rim Demo", email: "rim@example.com", bretagne: "no", tunisia: "yes", party_size: 1, city: "Tunis", country: "Tunisie", geo_lat: 36.8, geo_lng: 10.18, soiree: "yes", early_arrival: "early" },
+          { token: "c", phase: "rsvp", names: "Couple VIP Demo", email: "vip@example.com", bretagne: "yes", tunisia: "yes", party_size: 2, city: "Berlin", country: "Germany", geo_lat: 52.52, geo_lng: 13.40, soiree: "yes", early_arrival: "early" }
         ]
       };
     }
@@ -59,15 +60,26 @@
       return { bretagne: "Bretagne", tunis: "Tunisie", both: "Les deux", declined: "Ne vient pas" }[choiceOf(r)];
     }
 
+    let data = null, map = null;
     try {
-      const data = await fetchData();
-      const phase = data.phase;
-      document.getElementById("phase").textContent =
-        `Phase actuelle : ${phase === "poll" ? "sondage (non contraignant)" : "RSVP définitif"}`;
+      data = await fetchData();
       // ignore phantom rows (empty name) created by whole-column sheet formulas
       data.guests = data.guests.filter(g => String(g.name || "").trim());
-      const guestBy = {}; data.guests.forEach(g => guestBy[String(g.token).trim()] = g);
-      const resp = data.responses.filter(r => r.phase === phase);
+      document.getElementById("phase").textContent =
+        `Phase actuelle : ${data.phase === "poll" ? "sondage (non contraignant)" : "RSVP définitif"}`;
+      draw("");
+    } catch (e) {
+      out.innerHTML = `<p class="text-red-600">${esc(e.message)}</p>`;
+    }
+
+    // Renders everything for one family (`side` column) or for all guests.
+    function draw(side) {
+      const phase = data.phase;
+      const sideOf = g => String(g.side || "").trim();
+      const sides = [...new Set(data.guests.map(sideOf).filter(Boolean))].sort();
+      const guests = side ? data.guests.filter(g => sideOf(g) === side) : data.guests;
+      const tokens = new Set(guests.map(g => String(g.token).trim()));
+      const resp = data.responses.filter(r => r.phase === phase && tokens.has(String(r.token).trim()));
       const isYes = v => v === "yes";
       const truthy = v => v === true || String(v).toUpperCase() === "TRUE";
 
@@ -79,7 +91,7 @@
       });
 
       const answeredTokens = new Set(resp.map(r => String(r.token).trim()));
-      const noAnswer = data.guests.filter(g => !answeredTokens.has(String(g.token).trim()));
+      const noAnswer = guests.filter(g => !answeredTokens.has(String(g.token).trim()));
 
       const sub = { soiree: [], mariageTn: [] };
       resp.forEach(r => {
@@ -96,14 +108,25 @@
         </div>`;
 
       const nameList = list => list.length
-        ? list.map(r => `<li>${r.names || r.token} <span class="text-stone-400">(${r.party_size})</span></li>`).join("")
+        ? list.map(r => `<li>${esc(r.names || r.token)} <span class="text-stone-400">(${esc(r.party_size)})</span></li>`).join("")
         : `<li class="text-stone-400">personne pour l'instant</li>`;
 
+      const filterBar = sides.length ? `
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+          <span class="text-stone-500">Famille :</span>
+          ${[["", "Tous"], ...sides.map(s => [s, s])].map(([v, l]) => `
+            <button data-side="${esc(v)}" class="px-3 py-1 rounded-full border ${v === side
+              ? "bg-stone-800 text-white border-stone-800" : "bg-white border-stone-300 hover:bg-stone-50"}">${esc(l)}</button>`).join("")}
+        </div>` : "";
+
+      const sideTag = g => sideOf(g) && !side ? ` <span class="text-stone-400 text-xs">${esc(sideOf(g))}</span>` : "";
+
       out.innerHTML = `
+        ${filterBar}
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           ${card("Bretagne", `${seats.bretagne} / ${data.capacities.bretagne}`, "personnes / capacité")}
           ${card("Tunisie", `${seats.tunis} / ${data.capacities.tunis}`, "personnes / capacité")}
-          ${card("Réponses", `${resp.length} / ${data.guests.length}`, "invitations répondues")}
+          ${card("Réponses", `${resp.length} / ${guests.length}`, "invitations répondues")}
           ${card("Sans réponse", noAnswer.length)}
         </div>
 
@@ -130,7 +153,7 @@
         </div>
 
         <div class="bg-white rounded-xl shadow p-4 mb-6 overflow-x-auto">
-          <h3 class="font-semibold mb-2">Toutes les réponses (${phase})</h3>
+          <h3 class="font-semibold mb-2">Toutes les réponses (${esc(phase)})</h3>
           <table class="w-full text-left">
             <thead><tr class="border-b text-stone-500">
               <th class="py-1 pr-3">Invité</th><th class="pr-3">Choix</th><th class="pr-3">Adultes</th>
@@ -138,14 +161,16 @@
               <th class="pr-3">Ville</th><th>Note</th>
             </tr></thead>
             <tbody>
-              ${resp.map(r => `<tr class="border-b border-stone-100">
-                <td class="py-1 pr-3">${r.names || r.token}${r.plus_one_name ? `<br><span class="text-stone-400 text-xs">+1 : ${r.plus_one_name}${r.plus_one_email ? " · " + r.plus_one_email : ""}</span>` : ""}</td>
+              ${resp.map(r => `<tr class="border-b border-stone-100 align-top">
+                <td class="py-1 pr-3">${esc(r.names || r.token)}
+                  ${r.email ? `<br><span class="text-stone-400 text-xs">${esc(r.email)}</span>` : ""}
+                  ${r.plus_one_name ? `<br><span class="text-stone-400 text-xs">+1 : ${esc(r.plus_one_name)}${r.plus_one_email ? " · " + esc(r.plus_one_email) : ""}</span>` : ""}</td>
                 <td class="pr-3" style="color:${COLORS[choiceOf(r)]}">${choiceLabel(r)}</td>
-                <td class="pr-3">${r.party_size}</td>
-                <td class="pr-3">${r.early_arrival === "early" ? "dès le 9" : r.early_arrival === "weddingOnly" ? "le 12" : ""}</td>
-                <td class="pr-3">${r.soiree || ""}</td>
-                <td class="pr-3">${r.city || ""}, ${r.country || ""}</td>
-                <td class="text-stone-500">${r.note || ""}</td>
+                <td class="pr-3">${esc(r.party_size)}</td>
+                <td class="pr-3">${r.early_arrival === "early" ? "toutes les journées" : r.early_arrival === "weddingOnly" ? "mariage seulement" : ""}</td>
+                <td class="pr-3">${esc(r.soiree || "")}</td>
+                <td class="pr-3">${esc(r.city || "")}${r.country ? ", " + esc(r.country) : ""}</td>
+                <td class="text-stone-500">${esc(r.note || "")}</td>
               </tr>`).join("")}
             </tbody>
           </table>
@@ -154,12 +179,15 @@
         <div class="bg-white rounded-xl shadow p-4">
           <h3 class="font-semibold mb-2">Sans réponse (${noAnswer.length})</h3>
           <ul class="list-disc list-inside">
-            ${noAnswer.map(g => `<li>${g.name} ${truthy(g.vip) ? "⭐" : ""}</li>`).join("") || "<li class='text-stone-400'>tout le monde a répondu 🎉</li>"}
+            ${noAnswer.map(g => `<li>${esc(g.name)} ${truthy(g.vip) ? "⭐" : ""}${sideTag(g)}</li>`).join("") || "<li class='text-stone-400'>tout le monde a répondu 🎉</li>"}
           </ul>
         </div>`;
 
-      // map
-      const map = L.map("map").setView([44, 5], 4);
+      out.querySelectorAll("[data-side]").forEach(b => b.onclick = () => draw(b.dataset.side));
+
+      // map (rebuilt on every draw: Leaflet can't reuse a replaced container)
+      if (map) { map.remove(); map = null; }
+      map = L.map("map").setView([44, 5], 4);
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         { attribution: "© OpenStreetMap" }).addTo(map);
       const pts = [];
@@ -168,13 +196,11 @@
         const c = COLORS[choiceOf(r)];
         L.circleMarker([Number(r.geo_lat), Number(r.geo_lng)],
           { radius: 8, color: c, fillColor: c, fillOpacity: .8 })
-          .bindPopup(`<strong>${r.names || r.token}</strong><br>${r.city || ""} — ${r.party_size} pers.`)
+          .bindPopup(`<strong>${esc(r.names || r.token)}</strong><br>${esc(r.city || "")} · ${esc(r.party_size)} pers.`)
           .addTo(map);
         pts.push([Number(r.geo_lat), Number(r.geo_lng)]);
       });
-      if (pts.length) map.fitBounds(pts, { padding: [30, 30] });
-    } catch (e) {
-      out.innerHTML = `<p class="text-red-600">${e.message}</p>`;
+      if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 6 });
     }
   })();
   </script>

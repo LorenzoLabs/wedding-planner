@@ -68,6 +68,13 @@
     #rsvp input, #rsvp textarea { background: var(--card); font-weight: 300; }
     #rsvp .btn-choice.selected { border-color: var(--ink); background: var(--ink); color: var(--paper); }
     #rsvp h3 { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 700; font-size: 1.4rem; }
+    /* city suggestions dropdown */
+    #rsvp .city-list { position: absolute; left: 0; right: 0; z-index: 20; margin-top: 4px; padding: 4px 0; list-style: none;
+      background: var(--card); border: 1px solid var(--line); border-radius: .75rem; max-height: 240px; overflow-y: auto;
+      box-shadow: 0 10px 24px rgba(60,50,30,.12); }
+    #rsvp .city-list li { padding: .5rem .9rem; cursor: pointer; font-size: .95rem; }
+    #rsvp .city-list li:hover { background: var(--paper); }
+    #rsvp .city-list li small { color: var(--muted); margin-left: .4rem; }
   </style>
 </head>
 <body class="min-h-screen">

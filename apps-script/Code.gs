@@ -1,6 +1,6 @@
 /**
  * Wedding Planner — Google Apps Script backend.
- * CODE VERSION: 2026-09-18-a  (bump this line whenever you paste new code)
+ * CODE VERSION: 2026-09-18-b  (bump this line whenever you paste new code)
  *
  * Paste this into a script bound to your Google Sheet (Extensions → Apps Script),
  * run setupSheet() once, then Deploy → New deployment → Web app,
@@ -17,17 +17,18 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var VERSION = "2026-09-18-a";
+var VERSION = "2026-09-18-b";
 
 // Columns are read BY POSITION (A, B, C… in this order), not by the header text
 // in row 1. So this list must match the physical column order of the Guests tab.
-// A token · B name · C contact · D vip · E gender · F invit_tunisie · G invit_soiree
-// · H city · I country · J importance · K lang · L plus_one · M places.
-// Column N ("lien", a display formula) sits OUTSIDE this list and is never read.
-var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_tunisie", "invit_soiree", "city", "country", "importance", "lang", "plus_one", "places"];
+// A token · B name · C contact (email, filled in by the form) · D vip · E gender
+// · F invit_tunisie · G city · H country · I side (which family: free label used
+// as a dashboard filter) · J lang · K plus_one · L places.
+// Column M ("lien", a display formula) sits OUTSIDE this list and is never read.
+var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_tunisie", "city", "country", "side", "lang", "plus_one", "places"];
 var RESP_HEADERS = ["token", "timestamp", "phase", "names", "bretagne", "tunisia", "party_size",
   "early_arrival", "hammam", "soiree", "city", "country", "note", "editable_until", "geo_lat", "geo_lng",
-  "plus_one_name", "plus_one_email"];
+  "plus_one_name", "plus_one_email", "email"];
 
 // ---------- one-time setup ----------
 function setupSheet() {
@@ -47,9 +48,9 @@ function setupSheet() {
   var g = ss.getSheetByName("Guests");
   if (g.getLastRow() < 2) {
     g.getRange(2, 1, 3, GUEST_HEADERS.length).setValues([
-      ["test-reg-fr", "Testeur France", "", false, "M", false, false, "Rennes", "France", "", "", false, 1],
-      ["test-reg-tn", "Testeuse Tunisie", "", false, "F", true, true, "Tunis", "Tunisie", "", "", true, 1],
-      ["test-vip", "Couple VIP", "", true, "F", true, true, "Berlin", "Germany", "", "en", true, 2]
+      ["test-reg-fr", "Testeur France", "", false, "M", false, "Rennes", "France", "", "", false, 1],
+      ["test-reg-tn", "Testeuse Tunisie", "", false, "F", true, "Tunis", "Tunisie", "", "", true, 1],
+      ["test-vip", "Couple VIP", "", true, "F", true, "Berlin", "Germany", "", "en", true, 2]
     ]);
   }
 }
@@ -58,6 +59,14 @@ function ensureTab(ss, name, headers) {
   var sh = ss.getSheetByName(name) || ss.insertSheet(name);
   sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold");
   return sh;
+}
+// Rewrite the header row when a column was added to the code after setup
+// (checked on the last header only: cheap, and columns are only ever appended).
+function ensureHeaders(sh, headers) {
+  var n = headers.length;
+  if (sh.getRange(1, n).getValue() !== headers[n - 1]) {
+    sh.getRange(1, 1, 1, n).setValues([headers]).setFontWeight("bold");
+  }
 }
 
 // Create (once) the "Timeline" tab Wafa & Lorenzo edit like a board:
@@ -329,6 +338,7 @@ function respToClient(r) {
     names: r.names, bretagne: r.bretagne, tunisia: r.tunisia, partySize: Number(r.party_size) || 1,
     earlyArrival: r.early_arrival, hammam: r.hammam, soiree: r.soiree,
     city: r.city, country: r.country, note: r.note,
+    lat: r.geo_lat || "", lng: r.geo_lng || "", email: r.email || "",
     plusOneName: r.plus_one_name || "", plusOneEmail: r.plus_one_email || "",
     editableUntil: r.editable_until ? new Date(r.editable_until).toISOString() : null
   };
@@ -405,7 +415,7 @@ function doGet(e) {
     guest: {
       name: guest.name,
       vip: guest.vip === true || String(guest.vip).toUpperCase() === "TRUE",
-      invitSoiree: guest.invit_soiree === true || String(guest.invit_soiree).toUpperCase() === "TRUE",
+      email: String(guest.contact || "").trim(),
       lang: String(guest.lang || "").toLowerCase() === "en" ? "en" : "fr",
       plusOne: guest.plus_one === true || String(guest.plus_one).toUpperCase() === "TRUE",
       seats: Math.max(1, parseInt(guest.places, 10) || 1),
@@ -470,26 +480,38 @@ function doPost(e) {
       }
     }
 
+    var email = String(body.email || "").trim().slice(0, 200);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ ok: false, error: "bad_email" });
+    // coordinates come with the city picked in the form; server-side geocoding
+    // below only covers the rare free-text fallback
+    var lat = Number(body.lat), lng = Number(body.lng);
+    var hasGeo = isFinite(lat) && isFinite(lng) && (lat !== 0 || lng !== 0) && body.lat !== "" && body.lng !== "";
+
     var editableUntil = existing ? new Date(existing.editable_until) : new Date(now.getTime() + 24 * 3600 * 1000);
     var row = [String(body.token).trim(), now, phase, String(body.names || guest.name).slice(0, 300),
       bretagne, tunisia, partySize, earlyArrival, hammam, soiree,
       String(body.city || "").slice(0, 100), String(body.country || "").slice(0, 100),
-      String(body.note || "").slice(0, 1000), editableUntil, "", "", plusOneName, plusOneEmail];
+      String(body.note || "").slice(0, 1000), editableUntil, hasGeo ? lat : "", hasGeo ? lng : "",
+      plusOneName, plusOneEmail, email];
 
-    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Responses");
-    if (existing) {
-      // keep any geocoding already done if the city didn't change
-      if (existing.city === row[10] && existing.geo_lat) { row[14] = existing.geo_lat; row[15] = existing.geo_lng; }
-    }
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName("Responses");
+    // keep any geocoding already done if the city didn't change
+    if (!row[14] && existing && existing.city === row[10] && existing.geo_lat) { row[14] = existing.geo_lat; row[15] = existing.geo_lng; }
     // pin the answer on the dashboard map right away
     if (!row[14] && row[10]) {
       var geo = geocodeCity(row[10], row[11]);
       if (geo) { row[14] = geo.lat; row[15] = geo.lng; }
     }
+    ensureHeaders(sh, RESP_HEADERS);
     if (existing) {
       sh.getRange(existing._row, 1, 1, RESP_HEADERS.length).setValues([row]);
     } else {
       sh.appendRow(row);
+    }
+    // remember the email on the guest row so the Guests list stays complete
+    if (String(guest.contact || "").trim() !== email) {
+      ss.getSheetByName("Guests").getRange(guest._row, GUEST_HEADERS.indexOf("contact") + 1).setValue(email);
     }
     return json({ ok: true, editableUntil: editableUntil.toISOString() });
   } finally {

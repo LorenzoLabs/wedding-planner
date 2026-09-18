@@ -1,7 +1,7 @@
 // Wizard logic. Talks to the Google Apps Script API (CONFIG.gasUrl).
 // With CONFIG.gasUrl === "" the site runs in DEMO MODE with fake guests:
 //   ?g=demo      → regular guest
-//   ?g=demo-vip  → VIP guest invited to both + hammam + soirée
+//   ?g=demo-vip  → VIP guest invited to both weddings
 
 (function () {
   const $rsvp = document.getElementById("rsvp");
@@ -11,12 +11,14 @@
   const state = {
     lang: localStorage.getItem("lang") || CONFIG.defaultLang,
     step: 1,
-    guest: null,      // {name, vip, invitHammam, invitSoiree}
+    guest: null,      // {name, vip, invitTunisie, plusOne, seats, email, lang}
     phase: "poll",
     placesLeft: null, // {bretagne, tunis} or null
     existing: null,   // previous response or null
     editable: true,
-    answers: { plusOne: false, plusOneName: "", plusOneEmail: "", partySize: 1, city: "", country: "", bretagne: "", tunisia: "", earlyArrival: "", hammam: "", soiree: "", note: "" }
+    geoDown: false,   // city search unreachable → free text accepted
+    // cityPick = place chosen from the suggestions: {city, country, region, lat, lng}
+    answers: { email: "", plusOne: false, plusOneName: "", plusOneEmail: "", partySize: 1, city: "", country: "", cityPick: null, bretagne: "", tunisia: "", earlyArrival: "", soiree: "", note: "" }
   };
 
   const t = (k) => CONFIG.texts[state.lang][k];
@@ -112,8 +114,8 @@
   }
 
   function demoGet(tok) {
-    if (tok === "demo-vip") return { ok: true, phase: "rsvp", placesLeft: { bretagne: 12, tunis: 3 }, editable: true, response: null, guest: { name: "Ava & Sam Demo", vip: true, invitHammam: false, invitSoiree: true, plusOne: false, seats: 2, invitTunisie: true } };
-    if (tok === "demo") return { ok: true, phase: "poll", placesLeft: null, editable: true, response: null, guest: { name: "Alex Demo", vip: false, invitHammam: false, invitSoiree: true, plusOne: true, seats: 1, invitTunisie: false } };
+    if (tok === "demo-vip") return { ok: true, phase: "rsvp", placesLeft: { bretagne: 12, tunis: 3 }, editable: true, response: null, guest: { name: "Ava & Sam Demo", vip: true, plusOne: false, seats: 2, invitTunisie: true, email: "" } };
+    if (tok === "demo") return { ok: true, phase: "poll", placesLeft: null, editable: true, response: null, guest: { name: "Alex Demo", vip: false, plusOne: true, seats: 1, invitTunisie: false, email: "" } };
     return { ok: false, error: "bad_token" };
   }
 
@@ -168,7 +170,8 @@
   function stepBasics() {
     const a = state.answers;
     const title = t("step2Title") ? `<h3 class="text-lg font-semibold mb-3">${esc(t("step2Title"))}</h3>` : "";
-    const countries = (CONFIG.countries && CONFIG.countries[state.lang]) || [];
+    const email = a.email || state.guest.email || "";
+    const cityShown = a.cityPick ? `${a.cityPick.city}, ${a.cityPick.country}` : (a.city || "");
     const seats = state.guest.seats || 1;
     const seatsInfo = seats >= 2 ? `<p class="text-sm mb-3 bg-stone-100 rounded-lg p-2">${esc(t("seatsInfo").replace("{n}", seats))}</p>` : "";
     const plusOne = state.guest.plusOne ? `
@@ -180,18 +183,69 @@
         <input id="f-po-name" class="w-full border border-stone-300 rounded-lg p-2" placeholder="${esc(t("plusOneNameLabel"))}" value="${esc(a.plusOneName || "")}">
         <input id="f-po-email" type="email" class="w-full border border-stone-300 rounded-lg p-2" placeholder="${esc(t("plusOneEmailLabel"))}" value="${esc(a.plusOneEmail || "")}">
       </div>` : "";
-    return `${title}${seatsInfo}${plusOne}
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="block text-sm mb-1">${esc(t("cityLabel"))}</label>
-          <input id="f-city" class="w-full border border-stone-300 rounded-lg p-2" value="${esc(a.city)}"></div>
-        <div><label class="block text-sm mb-1">${esc(t("countryLabel"))}</label>
-          <select id="f-country" class="w-full border border-stone-300 rounded-lg p-2 bg-white">
-            <option value="">${esc(t("countryPlaceholder"))}</option>
-            ${countries.map(c => `<option value="${esc(c)}" ${a.country === c ? "selected" : ""}>${esc(c)}</option>`).join("")}
-          </select></div>
+    return `${title}${seatsInfo}
+      <div class="mb-4"><label class="block text-sm mb-1">${esc(t("emailLabel"))}</label>
+        <input id="f-email" type="email" autocomplete="email" inputmode="email" class="w-full border border-stone-300 rounded-lg p-2" value="${esc(email)}"></div>
+      ${plusOne}
+      <div class="relative"><label class="block text-sm mb-1">${esc(t("cityLabel"))}</label>
+        <input id="f-city" autocomplete="off" class="w-full border border-stone-300 rounded-lg p-2" placeholder="${esc(t("cityPlaceholder"))}" value="${esc(cityShown)}">
+        <ul id="f-city-list" class="city-list hidden"></ul>
       </div>
       <p id="f-err" class="text-sm text-red-600 mt-2 hidden"></p>
       ${navButtons(1)}`;
+  }
+
+  // ---------- city picker (Photon, OpenStreetMap data, no API key) ----------
+  // Guests must pick a real place from the suggestions: that gives a clean city
+  // name, its country in the guest's language and coordinates for the map.
+  let cityTimer = null, cityAbort = null;
+  function bindCityPicker() {
+    const input = document.getElementById("f-city"), list = document.getElementById("f-city-list");
+    if (!input || !list) return;
+    const close = () => { list.classList.add("hidden"); list.innerHTML = ""; };
+    input.oninput = () => {
+      state.answers.cityPick = null; // typing again invalidates the previous pick
+      clearTimeout(cityTimer);
+      const q = input.value.trim();
+      if (q.length < 2) { close(); return; }
+      cityTimer = setTimeout(() => searchCity(q, list, input, close), 250);
+    };
+    input.onblur = () => setTimeout(close, 150);
+  }
+  async function searchCity(q, list, input, close) {
+    if (cityAbort) cityAbort.abort();
+    cityAbort = new AbortController();
+    let feats;
+    try {
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=${state.lang}`
+        + "&osm_tag=place:city&osm_tag=place:town&osm_tag=place:village";
+      const res = await fetch(url, { signal: cityAbort.signal });
+      feats = (await res.json()).features || [];
+      state.geoDown = false;
+    } catch (e) {
+      if (e.name === "AbortError") return;
+      state.geoDown = true; close(); return; // search unavailable: free text is accepted
+    }
+    const seen = new Set();
+    const items = feats
+      .map(f => ({ city: f.properties.name, country: f.properties.country || "", region: f.properties.state || "",
+                   lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] }))
+      .filter(it => it.city && it.country && !seen.has(it.city + "|" + it.country) && seen.add(it.city + "|" + it.country))
+      .slice(0, 6);
+    if (!items.length) {
+      list.innerHTML = `<li class="text-stone-400" style="cursor:default">${esc(t("cityNoResult"))}</li>`;
+      list.classList.remove("hidden"); return;
+    }
+    list.innerHTML = items.map((it, i) =>
+      `<li data-i="${i}">${esc(it.city)}<small>${esc([it.region, it.country].filter(Boolean).join(", "))}</small></li>`).join("");
+    list.classList.remove("hidden");
+    list.querySelectorAll("li[data-i]").forEach(li => li.onmousedown = (ev) => {
+      ev.preventDefault(); // keep focus so blur doesn't close the list before the click lands
+      const it = items[+li.dataset.i];
+      state.answers.cityPick = it; state.answers.city = it.city; state.answers.country = it.country;
+      input.value = `${it.city}, ${it.country}`;
+      close();
+    });
   }
 
   function placesBadge(evKey) {
@@ -303,6 +357,7 @@
       const f = document.getElementById("f-plusone-fields");
       if (f) f.classList.toggle("hidden", !po.checked);
     };
+    bindCityPicker();
     const next = document.getElementById("next");
     if (next) next.onclick = onNext;
     const send = document.getElementById("send");
@@ -314,6 +369,9 @@
   function onNext() {
     const a = state.answers;
     if (state.step === 2) {
+      const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      a.email = (document.getElementById("f-email").value || "").trim();
+      if (!emailOk(a.email)) return err(t("emailInvalid"));
       const po = document.getElementById("f-plusone");
       a.plusOne = state.guest.plusOne && po ? po.checked : false;
       a.partySize = (state.guest.seats || 1) + (a.plusOne ? 1 : 0);
@@ -321,10 +379,12 @@
         a.plusOneName = (document.getElementById("f-po-name").value || "").trim();
         a.plusOneEmail = (document.getElementById("f-po-email").value || "").trim();
         if (!a.plusOneName) return err(t("plusOneNameRequired"));
+        if (a.plusOneEmail && !emailOk(a.plusOneEmail)) return err(t("emailInvalid"));
       } else { a.plusOneName = ""; a.plusOneEmail = ""; }
-      a.city = document.getElementById("f-city").value.trim();
-      a.country = document.getElementById("f-country").value.trim();
-      if (!a.city || !a.country) return err(t("required"));
+      const typed = document.getElementById("f-city").value.trim();
+      if (a.cityPick) { a.city = a.cityPick.city; a.country = a.cityPick.country; }
+      else if (state.geoDown && typed) { a.city = typed; a.country = ""; } // search down: accept free text
+      else return err(t("cityPickRequired"));
       return go(3);
     }
     if (state.step === 3) {
@@ -342,9 +402,10 @@
   function payload() {
     const a = state.answers;
     return {
-      token, names: state.guest.name, partySize: a.partySize, plusOne: !!a.plusOne,
+      token, names: state.guest.name, email: a.email, partySize: a.partySize, plusOne: !!a.plusOne,
       plusOneName: a.plusOne ? a.plusOneName : "", plusOneEmail: a.plusOne ? a.plusOneEmail : "",
       city: a.city, country: a.country,
+      lat: a.cityPick ? a.cityPick.lat : "", lng: a.cityPick ? a.cityPick.lng : "",
       bretagne: a.bretagne || "no", tunisia: a.tunisia || "no",
       earlyArrival: a.tunisia === "yes" ? a.earlyArrival : "",
       soiree: a.tunisia === "yes" ? a.soiree : "",
@@ -361,6 +422,7 @@
       if (res.ok) { state.editableUntil = res.editableUntil; state.step = 6; render(); return; }
       send.disabled = false; send.textContent = state.existing ? t("update") : t("submit");
       if (res.error === "capacity_bretagne" || res.error === "capacity_tunis") err(t("errCapacity"));
+      else if (res.error === "bad_email") { go(2); err(t("emailInvalid")); }
       else if (res.error === "edit_closed") { state.editable = false; render(); }
       else err(t("errGeneric"));
     } catch (e) {
@@ -372,11 +434,14 @@
   // ---------- boot ----------
   function prefill(r) {
     const a = state.answers;
+    a.email = r.email || "";
     a.partySize = r.partySize || 1; a.plusOne = (r.partySize || 1) > (state.guest.seats || 1); a.city = r.city || ""; a.country = r.country || "";
+    // a previously saved city counts as a valid pick (it was validated then)
+    a.cityPick = r.city ? { city: r.city, country: r.country || "", region: "", lat: r.lat || "", lng: r.lng || "" } : null;
     a.plusOneName = r.plusOneName || ""; a.plusOneEmail = r.plusOneEmail || "";
     a.bretagne = r.bretagne || ""; a.tunisia = r.tunisia || "";
     if (!state.guest.vip) a._single = r.bretagne === "yes" ? "bretagne" : r.tunisia === "yes" ? "tunis" : (r.bretagne === "no" && r.tunisia === "no" ? "decline" : "");
-    a.earlyArrival = r.earlyArrival || ""; a.hammam = r.hammam || ""; a.soiree = r.soiree || ""; a.note = r.note || "";
+    a.earlyArrival = r.earlyArrival || ""; a.soiree = r.soiree || ""; a.note = r.note || "";
   }
 
   async function boot() {

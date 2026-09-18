@@ -17,11 +17,8 @@ const CONFIG = {
   coupleNames: "Wafa & Lorenzo",
   defaultLang: "fr",             // "fr" or "en"
 
-  // Countries offered in the RSVP dropdown (value kept as the label).
-  countries: {
-    fr: ["Allemagne", "Tunisie", "France", "Royaume-Uni", "Hongrie", "Espagne"],
-    en: ["Germany", "Tunisia", "France", "United Kingdom", "Hungary", "Spain"]
-  },
+  // Guests type their city and pick it from live suggestions (Photon, OpenStreetMap
+  // data, no key needed); the country and map coordinates come with the pick.
 
   // The two weddings. Keys "bretagne" / "tunis" are used internally;
   // real dates/places come from the Sheet (Config: bretagne_date_fr, …).
@@ -77,9 +74,12 @@ const CONFIG = {
       plusOneEmailLabel: "Email de votre +1 (pour lui envoyer les infos)",
       plusOneNameRequired: "Merci d'indiquer le nom de votre +1.",
       peopleShort: "pers.",
+      emailLabel: "Votre email (pour vous envoyer les infos pratiques)",
+      emailInvalid: "Merci d'indiquer une adresse email valide.",
       cityLabel: "Votre ville",
-      countryLabel: "Votre pays",
-      countryPlaceholder: "Choisir…",
+      cityPlaceholder: "Commencez à taper, puis choisissez dans la liste",
+      cityPickRequired: "Merci de choisir votre ville dans la liste.",
+      cityNoResult: "Aucune ville trouvée, vérifiez l'orthographe.",
       step3Title: "Votre choix",
       choiceQuestionPoll: "Où iriez-vous ?",
       choiceQuestionRsvp: "Où venez-vous ?",
@@ -95,7 +95,6 @@ const CONFIG = {
       earlyArrivalQ: "Serez-vous là pour les journées traditionnelles ou seulement le mariage ?",
       earlyYes: "Toutes les journées, traditions comprises",
       earlyNo: "Seulement le jour du mariage",
-      hammamQ: "Hammam (hommes et femmes séparés) — vous en êtes ?",
       soireeQ: "Soirée de la femme (robes traditionnelles) — vous en êtes ?",
       yes: "Oui",
       no: "Non",
@@ -142,9 +141,12 @@ const CONFIG = {
       plusOneEmailLabel: "Your +1's email (to send them the info)",
       plusOneNameRequired: "Please enter your +1's name.",
       peopleShort: "people",
+      emailLabel: "Your email (to send you the practical details)",
+      emailInvalid: "Please enter a valid email address.",
       cityLabel: "Your city",
-      countryLabel: "Your country",
-      countryPlaceholder: "Choose…",
+      cityPlaceholder: "Start typing, then pick from the list",
+      cityPickRequired: "Please pick your city from the list.",
+      cityNoResult: "No city found, check the spelling.",
       step3Title: "Your choice",
       choiceQuestionPoll: "Where would you go?",
       choiceQuestionRsvp: "Where are you coming?",
@@ -160,7 +162,6 @@ const CONFIG = {
       earlyArrivalQ: "Will you be there for the traditional days or only the wedding?",
       earlyYes: "All the days, traditions included",
       earlyNo: "Only the wedding day",
-      hammamQ: "Hammam (men and women separated) — are you in?",
       soireeQ: "Women's ceremony (traditional dresses) — are you in?",
       yes: "Yes",
       no: "No",

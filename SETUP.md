@@ -84,12 +84,18 @@ and `?g=demo-vip` (VIP) work with fake data — handy to preview the design.
 
 1. Fill the **Guests** tab: one row per invitation (a couple = one row,
    `party_size` is what they answer). Columns:
+   - `contact` → the guest's email. Leave it empty: the form asks for it and
+     writes it here (it also pre-fills the field on a return visit).
    - `vip` TRUE → invited to both weddings, answers yes/no for each.
-   - `gender` M/F → splits the men's/women's hammam lists in the dashboard.
-   - `invit_hammam`, `invit_soiree` TRUE/FALSE → whether the form shows those
-     questions. Editable at any time; the form reflects the flags live.
-   - `importance` → free ranking column for your own planning (number or label);
-     the form ignores it, the dashboard shows it.
+   - `gender` M/F → for your own lists; the form ignores it.
+   - `invit_tunisie` TRUE/FALSE → shows the "see the presentation" button for
+     the second wedding (`tunisie_page_url` in Config). VIPs always see it.
+   - `city`, `country` → optional, for your own notes. What guests answer goes
+     to the Responses tab: they type their city and must pick it from live
+     suggestions (Photon / OpenStreetMap), so the country and the map pin come
+     for free and typos are rejected.
+   - `side` → which family the guest belongs to (e.g. the two first names).
+     Free label; the dashboard offers one filter button per distinct value.
    - `lang` → per-guest site language: empty or `fr` = French, `en` = English.
      The guest can still switch manually on the page.
    - `plus_one` TRUE/FALSE → whether this guest may bring an optional +1. Only
@@ -105,9 +111,9 @@ and `?g=demo-vip` (VIP) work with fake data — handy to preview the design.
 ## 5. Dashboard
 
 `https://<user>.github.io/wedding-planner/admin.html?key=<admin_key>` — counts,
-per-event lists, all answers, and the map. For map pins, run
-**`geocodeResponses`** in Apps Script from time to time (it geocodes new cities
-via OpenStreetMap, 1/second, and caches the result in the sheet).
+per-event lists, all answers, a filter per family (`side`), and the map. Pins
+come with each answer (the city picker returns coordinates); older rows without
+coordinates are geocoded a few at a time when the dashboard loads.
 
 ## Rules enforced by the backend
 
