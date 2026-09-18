@@ -41,6 +41,8 @@
     .place-link[href]::before { content: "📍 "; }
     body.site-pending .event-title, body.site-pending .event-place { opacity: 0; }
     .ornament svg { display: inline-block; margin: 0 -14px; }
+    /* narrow phones: the side lines would wrap under the branches, drop them */
+    @media (max-width: 480px) { .ornament::before, .ornament::after { display: none; } }
     .hero-photo { display: block; width: 100%; max-width: 460px; max-height: 340px; object-fit: cover; border-radius: 1rem; box-shadow: 0 14px 34px rgba(60,50,30,.16); border: 1px solid var(--line); }
     /* wide screens: bigger photo and title, still centred */
     @media (min-width: 1024px) {
