@@ -36,6 +36,9 @@
     /* while the real dates/places load, show nothing instead of demo placeholders
        (the couple names are static in the page and never wait) */
     .event-title, .event-place { transition: opacity .4s ease; }
+    /* place name becomes a map link only when a URL is configured */
+    .place-link[href] { text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; color: var(--ink); }
+    .place-link[href]::before { content: "📍 "; }
     body.site-pending .event-title, body.site-pending .event-place { opacity: 0; }
     .ornament svg { display: inline-block; margin: 0 -14px; }
     .hero-photo { display: block; width: 100%; max-width: 460px; max-height: 340px; object-fit: cover; border-radius: 1rem; box-shadow: 0 14px 34px rgba(60,50,30,.16); border: 1px solid var(--line); }
@@ -155,13 +158,13 @@
         <div class="card-soft p-6">
           <p class="overline-sm mb-2" style="color: var(--bretagne)"><span id="t-bretagneTitle"></span></p>
           <p class="event-title"><span id="ev-bretagne-date" class="event-date"></span></p>
-          <p class="text-sm mt-1 event-place" style="color: var(--muted)"><span id="ev-bretagne-place"></span></p>
+          <p class="text-sm mt-1 event-place" style="color: var(--muted)"><a id="ev-bretagne-place" class="place-link" target="_blank" rel="noopener"></a></p>
           <p id="t-bretagneDesc" class="text-sm mt-3"></p>
         </div>
         <div class="card-soft p-6">
           <p class="overline-sm mb-2" style="color: var(--tunis)"><span id="t-tunisTitle"></span></p>
           <p class="event-title"><span id="ev-tunis-date" class="event-date"></span></p>
-          <p class="text-sm mt-1 event-place" style="color: var(--muted)"><span id="ev-tunis-place"></span></p>
+          <p class="text-sm mt-1 event-place" style="color: var(--muted)"><a id="ev-tunis-place" class="place-link" target="_blank" rel="noopener"></a></p>
           <p id="t-tunisDesc" class="text-sm mt-3"></p>
           <ul id="t-tunisDays" class="days text-sm mt-3 space-y-1" style="color: var(--muted)"></ul>
           <!-- presentation page, shown only to guests invited to Tunisia (app.js) -->
@@ -179,7 +182,7 @@
 
   <!-- bump ?v= when config.js/app.js change, so browsers don't pair a fresh
        index.html with a cached old script -->
-  <script src="config.js?v=20260918b"></script>
-  <script src="app.js?v=20260918b"></script>
+  <script src="config.js?v=20260918c"></script>
+  <script src="app.js?v=20260918c"></script>
 </body>
 </html>

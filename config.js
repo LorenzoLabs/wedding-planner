@@ -26,11 +26,13 @@ const CONFIG = {
     bretagne: {
       dateLabel: { fr: "date à venir", en: "date to come" },
       place: { fr: "Bretagne, France", en: "Brittany, France" },
+      mapUrl: "",      // Sheet: bretagne_map_url (Google Maps link on the place name)
       color: "#2563eb" // blue
     },
     tunis: {
       dateLabel: { fr: "date à venir", en: "date to come" },
       place: { fr: "Tunisie", en: "Tunisia" },
+      mapUrl: "",      // Sheet: tunis_map_url
       color: "#ea580c" // orange
     }
   },

@@ -41,9 +41,13 @@
     if (rulesEl.parentElement) rulesEl.parentElement.hidden = !rulesText;
     document.getElementById("t-tunisDays").innerHTML = t("tunisDays").map(d => `<li>${esc(d)}</li>`).join("");
     document.getElementById("ev-bretagne-date").textContent = CONFIG.events.bretagne.dateLabel[state.lang];
-    document.getElementById("ev-bretagne-place").textContent = CONFIG.events.bretagne.place[state.lang];
     document.getElementById("ev-tunis-date").textContent = CONFIG.events.tunis.dateLabel[state.lang];
-    document.getElementById("ev-tunis-place").textContent = CONFIG.events.tunis.place[state.lang];
+    // the place name links to a map when a URL is configured (Sheet: *_map_url)
+    ["bretagne", "tunis"].forEach(k => {
+      const el = document.getElementById(`ev-${k}-place`), ev = CONFIG.events[k];
+      el.textContent = ev.place[state.lang];
+      if (ev.mapUrl) el.href = ev.mapUrl; else el.removeAttribute("href");
+    });
     document.getElementById("lang-fr").classList.toggle("active", state.lang === "fr");
     document.getElementById("lang-en").classList.toggle("active", state.lang === "en");
     const hero = document.getElementById("hero-photo");
@@ -99,6 +103,7 @@
       const ev = site.events && site.events[k];
       if (!ev) return;
       const descKey = k === "bretagne" ? "bretagneDesc" : "tunisDesc";
+      if (ev.map) CONFIG.events[k].mapUrl = ev.map;
       ["fr", "en"].forEach(l => {
         if (ev.date && ev.date[l]) CONFIG.events[k].dateLabel[l] = ev.date[l];
         if (ev.place && ev.place[l]) CONFIG.events[k].place[l] = ev.place[l];

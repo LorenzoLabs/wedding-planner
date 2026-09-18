@@ -84,6 +84,8 @@ and `?g=demo-vip` (VIP) work with fake data — handy to preview the design.
 
 1. Fill the **Guests** tab: one row per invitation (a couple = one row,
    `party_size` is what they answer). Columns:
+   - `side` → which family the guest belongs to (e.g. the two first names).
+     Free label; the dashboard offers one filter button per distinct value.
    - `contact` → the guest's email. Leave it empty: the form asks for it and
      writes it here (it also pre-fills the field on a return visit).
    - `vip` TRUE → invited to both weddings, answers yes/no for each.
@@ -94,8 +96,6 @@ and `?g=demo-vip` (VIP) work with fake data — handy to preview the design.
      to the Responses tab: they type their city and must pick it from live
      suggestions (Photon / OpenStreetMap), so the country and the map pin come
      for free and typos are rejected.
-   - `side` → which family the guest belongs to (e.g. the two first names).
-     Free label; the dashboard offers one filter button per distinct value.
    - `lang` → per-guest site language: empty or `fr` = French, `en` = English.
      The guest can still switch manually on the page.
    - `plus_one` TRUE/FALSE → whether this guest may bring an optional +1. Only

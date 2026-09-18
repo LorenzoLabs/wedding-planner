@@ -1,6 +1,6 @@
 /**
  * Wedding Planner — Google Apps Script backend.
- * CODE VERSION: 2026-09-18-b  (bump this line whenever you paste new code)
+ * CODE VERSION: 2026-09-18-c  (bump this line whenever you paste new code)
  *
  * Paste this into a script bound to your Google Sheet (Extensions → Apps Script),
  * run setupSheet() once, then Deploy → New deployment → Web app,
@@ -17,15 +17,15 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var VERSION = "2026-09-18-b";
+var VERSION = "2026-09-18-c";
 
 // Columns are read BY POSITION (A, B, C… in this order), not by the header text
 // in row 1. So this list must match the physical column order of the Guests tab.
-// A token · B name · C contact (email, filled in by the form) · D vip · E gender
-// · F invit_tunisie · G city · H country · I side (which family: free label used
-// as a dashboard filter) · J lang · K plus_one · L places.
+// A token · B name · C side (which family: free label used as a dashboard filter)
+// · D contact (email, filled in by the form) · E vip · F gender · G invit_tunisie
+// · H city · I country · J lang · K plus_one · L places.
 // Column M ("lien", a display formula) sits OUTSIDE this list and is never read.
-var GUEST_HEADERS = ["token", "name", "contact", "vip", "gender", "invit_tunisie", "city", "country", "side", "lang", "plus_one", "places"];
+var GUEST_HEADERS = ["token", "name", "side", "contact", "vip", "gender", "invit_tunisie", "city", "country", "lang", "plus_one", "places"];
 var RESP_HEADERS = ["token", "timestamp", "phase", "names", "bretagne", "tunisia", "party_size",
   "early_arrival", "hammam", "soiree", "city", "country", "note", "editable_until", "geo_lat", "geo_lng",
   "plus_one_name", "plus_one_email", "email"];
@@ -48,9 +48,9 @@ function setupSheet() {
   var g = ss.getSheetByName("Guests");
   if (g.getLastRow() < 2) {
     g.getRange(2, 1, 3, GUEST_HEADERS.length).setValues([
-      ["test-reg-fr", "Testeur France", "", false, "M", false, "Rennes", "France", "", "", false, 1],
-      ["test-reg-tn", "Testeuse Tunisie", "", false, "F", true, "Tunis", "Tunisie", "", "", true, 1],
-      ["test-vip", "Couple VIP", "", true, "F", true, "Berlin", "Germany", "", "en", true, 2]
+      ["test-reg-fr", "Testeur France", "", "", false, "M", false, "Rennes", "France", "", false, 1],
+      ["test-reg-tn", "Testeuse Tunisie", "", "", false, "F", true, "Tunis", "Tunisie", "", true, 1],
+      ["test-vip", "Couple VIP", "", "", true, "F", true, "Berlin", "Germany", "en", true, 2]
     ]);
   }
 }
@@ -364,12 +364,14 @@ function doGet(e) {
           bretagne: {
             date: { fr: cfg.bretagne_date_fr || "", en: cfg.bretagne_date_en || "" },
             place: { fr: cfg.bretagne_place_fr || "", en: cfg.bretagne_place_en || "" },
-            desc: { fr: cfg.bretagne_desc_fr || "", en: cfg.bretagne_desc_en || "" }
+            desc: { fr: cfg.bretagne_desc_fr || "", en: cfg.bretagne_desc_en || "" },
+            map: String(cfg.bretagne_map_url || "")   // Google Maps link on the place name
           },
           tunis: {
             date: { fr: cfg.tunis_date_fr || "", en: cfg.tunis_date_en || "" },
             place: { fr: cfg.tunis_place_fr || "", en: cfg.tunis_place_en || "" },
-            desc: { fr: cfg.tunis_desc_fr || "", en: cfg.tunis_desc_en || "" }
+            desc: { fr: cfg.tunis_desc_fr || "", en: cfg.tunis_desc_en || "" },
+            map: String(cfg.tunis_map_url || "")
           }
         },
         tunisDays: { fr: days(cfg.tunis_days_fr), en: days(cfg.tunis_days_en) },
