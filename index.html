@@ -42,9 +42,9 @@
     body.site-pending .event-title, body.site-pending .event-place { opacity: 0; }
     .ornament svg { display: inline-block; margin: 0 -14px; }
     .hero-photo { display: block; width: 100%; max-width: 460px; max-height: 340px; object-fit: cover; border-radius: 1rem; box-shadow: 0 14px 34px rgba(60,50,30,.16); border: 1px solid var(--line); }
-    /* wide screens: photo and form side by side, so the page fills the width */
+    /* wide screens: bigger photo and title, still centred */
     @media (min-width: 1024px) {
-      .hero-photo { max-width: 100%; max-height: 460px; }
+      .hero-photo { max-width: 620px; max-height: 440px; }
       .hero-names { font-size: 4.5rem; }
     }
     ul.days { list-style: none; padding: 0; }
@@ -129,7 +129,8 @@
       <circle cx="13" cy="13" r="3" fill="#5c6b48"/>
     </symbol>
   </svg>
-  <div class="max-w-xl md:max-w-2xl lg:max-w-5xl mx-auto px-5 py-8">
+  <!-- one centred column; wider on large screens so the page doesn't look empty -->
+  <div class="max-w-xl md:max-w-2xl lg:max-w-4xl mx-auto px-5 py-8">
 
     <!-- language toggle -->
     <div class="flex justify-end gap-2 mb-6">
@@ -137,19 +138,16 @@
       <button id="lang-en" class="lang-btn">EN</button>
     </div>
 
-    <!-- on wide screens: hero + photo on the left, form on the right -->
-    <div class="lg:grid lg:grid-cols-2 lg:gap-12 lg:items-start lg:mb-4">
-      <header class="text-center mb-10 lg:mb-0">
-        <p id="t-title" class="overline-sm mb-5"></p>
-        <h1 id="couple" class="hero-names text-5xl sm:text-6xl mb-5">Wafa &amp; Lorenzo</h1>
-        <p class="ornament"><svg width="130" height="46" style="vertical-align:middle"><use href="#olive-branch"/></svg><svg width="130" height="46" style="vertical-align:middle;transform:scaleX(-1)"><use href="#olive-branch"/></svg></p>
-        <p id="t-intro" class="mt-5 text-[1.05rem] text-stone-600 max-w-md mx-auto"></p>
-        <img id="hero-photo" class="hero-photo mt-7 mx-auto" hidden alt="">
-      </header>
+    <header class="text-center mb-10">
+      <p id="t-title" class="overline-sm mb-5"></p>
+      <h1 id="couple" class="hero-names text-5xl sm:text-6xl mb-5">Wafa &amp; Lorenzo</h1>
+      <p class="ornament"><svg width="130" height="46" style="vertical-align:middle"><use href="#olive-branch"/></svg><svg width="130" height="46" style="vertical-align:middle;transform:scaleX(-1)"><use href="#olive-branch"/></svg></p>
+      <p id="t-intro" class="mt-5 text-[1.05rem] text-stone-600 max-w-md mx-auto"></p>
+      <img id="hero-photo" class="hero-photo mt-7 mx-auto" hidden alt="">
+    </header>
 
-      <!-- RSVP area (filled by app.js) -->
-      <section id="rsvp" class="card-soft p-6 sm:p-8 mb-10 lg:mb-0"></section>
-    </div>
+    <!-- RSVP area (filled by app.js), kept narrower than the program for readability -->
+    <section id="rsvp" class="card-soft p-6 sm:p-8 mb-10 max-w-2xl mx-auto"></section>
 
     <!-- program -->
     <section class="mb-8">
@@ -182,7 +180,7 @@
 
   <!-- bump ?v= when config.js/app.js change, so browsers don't pair a fresh
        index.html with a cached old script -->
-  <script src="config.js?v=20260918c"></script>
-  <script src="app.js?v=20260918c"></script>
+  <script src="config.js?v=20260918d"></script>
+  <script src="app.js?v=20260918d"></script>
 </body>
 </html>
