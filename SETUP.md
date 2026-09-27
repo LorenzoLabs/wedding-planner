@@ -108,6 +108,12 @@ and `?g=demo-vip` (VIP) work with fake data — handy to preview the design.
      Name the row for the whole party (e.g. "Amine & Sana"). A `plus_one` on top
      adds one more.
 2. Leave `token` empty, then run **`generateTokens`** in Apps Script.
+   **Group link** (one URL for a WhatsApp group): add a template row with a
+   readable token (e.g. `amis`) and the group's `side`, `invit_tunisie`,
+   `plus_one`, `lang`; list it in Config `shared_tokens` (comma-separated).
+   `?g=amis` asks "who are you?" and offers the guests sharing that `side`;
+   picking a name lands on the personal link. With Config `shared_allow_new`
+   = TRUE, someone missing from the list can add themselves (name + email).
 3. Each guest's personal link is `https://<user>.github.io/wedding-planner/?g=<token>`.
    Message templates in [`templates/messages.md`](templates/messages.md).
 

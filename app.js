@@ -17,6 +17,7 @@
     existing: null,   // previous response or null
     editable: true,
     geoDown: false,   // city search unreachable → free text accepted
+    group: null,      // shared group link: {side, allowNew} → "who are you?" screen
     // cityPick = place chosen from the suggestions: {city, country, region, lat, lng}
     answers: { email: "", plusOne: false, plusOneName: "", plusOneEmail: "", partySize: 1, city: "", country: "", cityPick: null, bretagne: "", tunisia: "", earlyArrival: "", soiree: "", note: "" }
   };
@@ -135,6 +136,7 @@
     if (state.error === "bad_token") { $rsvp.innerHTML = `<p class="text-center">${esc(t("badToken"))}</p>`; return; }
     if (state.error === "loading") { $rsvp.innerHTML = `<p class="text-center">${esc(t("loading"))}</p>`; return; }
     if (state.error === "generic") { $rsvp.innerHTML = `<p class="text-center">${esc(t("errGeneric"))}</p>`; return; }
+    if (state.group && !state.guest) { $rsvp.innerHTML = stepWho(); bindWho(); return; }
     if (!state.guest) return;
     renderTunisieCta();
 
@@ -203,6 +205,67 @@
       </div>
       <p id="f-err" class="text-sm text-red-600 mt-2 hidden"></p>
       ${navButtons(1)}`;
+  }
+
+  // ---------- group link: "who are you?" ----------
+  // A shared link (?g=amis) can't know the guest: they type their name, pick
+  // themselves among the group's guests and land on their personal link.
+  function stepWho() {
+    const newForm = state.group.allowNew ? `
+      <div id="who-new" class="hidden mt-4 space-y-2">
+        <input id="who-name" class="w-full border border-stone-300 rounded-lg p-2" placeholder="${esc(t("whoNewName"))}">
+        <input id="who-email" type="email" class="w-full border border-stone-300 rounded-lg p-2" placeholder="${esc(t("whoNewEmail"))}">
+        <button id="who-join" class="w-full px-4 py-2 rounded-lg bg-stone-800 text-white">${esc(t("whoNewBtn"))}</button>
+      </div>` : `<p id="who-new" class="hidden mt-3 text-sm text-stone-500">${esc(t("whoNewClosed"))}</p>`;
+    return `<h3 class="text-lg font-semibold mb-2">${esc(t("whoTitle"))}</h3>
+      <p class="text-sm mb-3" style="color: var(--muted)">${esc(t("whoHint"))}</p>
+      <div class="relative">
+        <input id="who-q" autocomplete="off" class="w-full border border-stone-300 rounded-lg p-2" placeholder="${esc(t("whoPlaceholder"))}">
+        <ul id="who-list" class="city-list who-list hidden"></ul>
+      </div>
+      <button id="who-toggle" class="mt-4 text-sm underline" style="color: var(--muted)">${esc(t("whoNotListed"))}</button>
+      ${newForm}
+      <p id="f-err" class="text-sm text-red-600 mt-2 hidden"></p>`;
+  }
+  let whoTimer = null;
+  function bindWho() {
+    const input = document.getElementById("who-q"), list = document.getElementById("who-list");
+    const close = () => { list.classList.add("hidden"); list.innerHTML = ""; };
+    input.oninput = () => {
+      clearTimeout(whoTimer);
+      const q = input.value.trim();
+      if (q.length < 2) { close(); return; }
+      whoTimer = setTimeout(async () => {
+        let matches = [];
+        try {
+          const res = await fetch(`${CONFIG.gasUrl}?who=${encodeURIComponent(token)}&q=${encodeURIComponent(q)}`);
+          matches = (await res.json()).matches || [];
+        } catch (e) { return err(t("errGeneric")); }
+        if (!matches.length) { list.innerHTML = `<li class="text-stone-400" style="cursor:default">${esc(t("whoNoMatch"))}</li>`; list.classList.remove("hidden"); return; }
+        list.innerHTML = matches.map((m, i) => `<li data-i="${i}">${esc(m.name)}</li>`).join("");
+        list.classList.remove("hidden");
+        list.querySelectorAll("li[data-i]").forEach(li => li.onmousedown = (ev) => {
+          ev.preventDefault();
+          location.href = `${location.pathname}?g=${encodeURIComponent(matches[+li.dataset.i].token)}`;
+        });
+      }, 250);
+    };
+    input.onblur = () => setTimeout(close, 150);
+    input.focus();
+    document.getElementById("who-toggle").onclick = () => document.getElementById("who-new").classList.toggle("hidden");
+    const join = document.getElementById("who-join");
+    if (join) join.onclick = async () => {
+      const name = document.getElementById("who-name").value.trim(), email = document.getElementById("who-email").value.trim();
+      if (name.length < 2) return err(t("whoNewNameRequired"));
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err(t("emailInvalid"));
+      join.disabled = true;
+      try {
+        const res = await fetch(CONFIG.gasUrl, { method: "POST", body: JSON.stringify({ action: "join", group: token, name, email }) });
+        const d = await res.json();
+        if (d.ok && d.token) { location.href = `${location.pathname}?g=${encodeURIComponent(d.token)}`; return; }
+        join.disabled = false; err(t("errGeneric"));
+      } catch (e) { join.disabled = false; err(t("errGeneric")); }
+    };
   }
 
   // ---------- city picker (Photon, OpenStreetMap data, no API key) ----------
@@ -486,6 +549,10 @@
       const res = await apiGetGuest(token);
       state.error = null;
       if (!res.ok) { state.error = "bad_token"; render(); return; }
+      if (res.group) {
+        if (res.lang && !localStorage.getItem("lang")) { state.lang = res.lang; renderStatic(); }
+        state.group = { side: res.side, allowNew: !!res.allowNew }; render(); return;
+      }
       // per-guest language from the sheet, unless the visitor already chose one
       if (res.guest.lang && !localStorage.getItem("lang")) { state.lang = res.guest.lang; renderStatic(); }
       state.guest = res.guest; state.phase = res.phase;

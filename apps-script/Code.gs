@@ -1,6 +1,6 @@
 /**
  * Wedding Planner — Google Apps Script backend.
- * CODE VERSION: 2026-09-27-a  (bump this line whenever you paste new code)
+ * CODE VERSION: 2026-09-27-b  (bump this line whenever you paste new code)
  *
  * Paste this into a script bound to your Google Sheet (Extensions → Apps Script),
  * run setupSheet() once, then Deploy → New deployment → Web app,
@@ -17,7 +17,7 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var VERSION = "2026-09-27-a";
+var VERSION = "2026-09-27-b";
 
 // Columns are read BY POSITION (A, B, C… in this order), not by the header text
 // in row 1. So this list must match the physical column order of the Guests tab.
@@ -94,20 +94,20 @@ function onEdit(e) {
 }
 
 // Fill a random short token for every guest row that has none.
+function newToken() {
+  var alphabet = "abcdefghjkmnpqrstuvwxyz23456789", s = ""; // no lookalikes
+  for (var j = 0; j < 8; j++) s += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+  return s;
+}
 function generateTokens() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Guests");
   var n = sh.getLastRow() - 1;
   if (n < 1) return;
   var toks = sh.getRange(2, 1, n, 1).getValues();
   var names = sh.getRange(2, 2, n, 1).getValues();
-  var alphabet = "abcdefghjkmnpqrstuvwxyz23456789"; // no lookalikes
   for (var i = 0; i < n; i++) {
     // only rows that actually have a guest name (formulas can extend getLastRow)
-    if (!toks[i][0] && String(names[i][0]).trim()) {
-      var s = "";
-      for (var j = 0; j < 8; j++) s += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
-      toks[i][0] = s;
-    }
+    if (!toks[i][0] && String(names[i][0]).trim()) toks[i][0] = newToken();
   }
   sh.getRange(2, 1, n, 1).setValues(toks);
 }
@@ -301,6 +301,56 @@ function tabAsObjects(name, headers) {
   });
 }
 
+// Group links: template rows listed in Config shared_tokens. Their `side`
+// defines the group; members are the guests sharing that side.
+function sharedTokens(cfg) {
+  return String(cfg.shared_tokens || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+}
+function groupRow(cfg, token) {
+  if (!token || sharedTokens(cfg).indexOf(String(token).trim()) < 0) return null;
+  return findGuest(token);
+}
+// lower-case, accents stripped, for name matching
+function norm(s) {
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+// A guest missing from the list joins through the group link: a new Guests
+// row with the group's settings. Same email twice = same person.
+function handleJoin(body) {
+  var cfg = getConfig();
+  var grp = groupRow(cfg, body.group);
+  if (!grp) return json({ ok: false, error: "bad_token" });
+  if (String(cfg.shared_allow_new).toUpperCase() !== "TRUE") return json({ ok: false, error: "closed" });
+  var name = String(body.name || "").trim().slice(0, 120);
+  var email = String(body.email || "").trim().slice(0, 200);
+  if (name.length < 2) return json({ ok: false, error: "bad_name" });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ ok: false, error: "bad_email" });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var gs = tabAsObjects("Guests", GUEST_HEADERS);
+    for (var i = 0; i < gs.length; i++) {
+      if (norm(gs[i].contact) === norm(email) && String(gs[i].name || "").trim()) return json({ ok: true, token: String(gs[i].token).trim() });
+    }
+    var token = newToken();
+    var row = GUEST_HEADERS.map(function (h) {
+      switch (h) {
+        case "token": return token;
+        case "name": return name;
+        case "contact": return email;
+        case "side": return grp.side || "";
+        case "vip": return false;
+        case "invit_tunisie": return grp.invit_tunisie === true || String(grp.invit_tunisie).toUpperCase() === "TRUE";
+        case "lang": return grp.lang || "";
+        case "plus_one": return grp.plus_one === true || String(grp.plus_one).toUpperCase() === "TRUE";
+        case "places": return 1;
+        default: return "";
+      }
+    });
+    SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Guests").appendRow(row);
+    return json({ ok: true, token: token });
+  } finally { lock.releaseLock(); }
+}
 function findGuest(token) {
   if (!token) return null;
   var gs = tabAsObjects("Guests", GUEST_HEADERS);
@@ -396,9 +446,32 @@ function doGet(e) {
       phase: cfg.phase,
       capacities: { bretagne: Number(cfg.capacity_bretagne), tunis: Number(cfg.capacity_tunis) },
       bretagneEnabled: String(cfg.bretagne_enabled).toUpperCase() !== "FALSE",
+      sharedTokens: sharedTokens(cfg),
       guests: tabAsObjects("Guests", GUEST_HEADERS),
       responses: tabAsObjects("Responses", RESP_HEADERS)
     });
+  }
+
+  // ---- shared group link (Config shared_tokens = "amis, famille-x") ----
+  // ?g=amis        -> tells the site to ask "who are you?"
+  // ?who=amis&q=la -> names of that group matching the typed letters
+  if (p.who) {
+    var grp = groupRow(cfg, p.who);
+    if (!grp) return json({ ok: false, error: "bad_token" });
+    var q = norm(p.q || "");
+    if (q.length < 2) return json({ ok: true, matches: [] });
+    var shared = sharedTokens(cfg);
+    var matches = tabAsObjects("Guests", GUEST_HEADERS).filter(function (g) {
+      return String(g.name || "").trim() && shared.indexOf(String(g.token).trim()) < 0
+        && norm(g.side) === norm(grp.side) && norm(g.name).indexOf(q) >= 0;
+    }).slice(0, 6).map(function (g) { return { token: String(g.token).trim(), name: g.name }; });
+    return json({ ok: true, matches: matches });
+  }
+  var grpRow = groupRow(cfg, p.g);
+  if (grpRow) {
+    return json({ ok: true, group: true, side: grpRow.side || "",
+      allowNew: String(cfg.shared_allow_new).toUpperCase() === "TRUE",
+      lang: String(grpRow.lang || "").toLowerCase() === "en" ? "en" : "fr" });
   }
 
   var guest = findGuest(p.g);
@@ -438,6 +511,7 @@ function doPost(e) {
   try { body = JSON.parse(e.postData.contents); } catch (err) { return json({ ok: false, error: "bad_json" }); }
 
   // Admin actions (timeline manager) carry an "action" + admin key; guests never do.
+  if (body.action === "join") return handleJoin(body);
   if (body.action) return handleAdmin(body);
 
   var guest = findGuest(body.token);

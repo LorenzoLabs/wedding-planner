@@ -64,7 +64,8 @@
     try {
       data = await fetchData();
       // ignore phantom rows (empty name) created by whole-column sheet formulas
-      data.guests = data.guests.filter(g => String(g.name || "").trim());
+      const shared = new Set((data.sharedTokens || []).map(String));
+      data.guests = data.guests.filter(g => String(g.name || "").trim() && !shared.has(String(g.token).trim()));
       document.getElementById("phase").textContent =
         `Phase actuelle : ${data.phase === "poll" ? "sondage (non contraignant)" : "RSVP définitif"}`;
       draw("");
