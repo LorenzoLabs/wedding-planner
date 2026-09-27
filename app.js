@@ -26,6 +26,9 @@
     const d = CONFIG.events[k].dateLabel[state.lang];
     return (k === "bretagne" ? t("choiceBretagne") : t("choiceTunis")) + (d ? " — " + d : "");
   };
+  // single-venue mode (Bretagne hidden): one yes/no question about Tunisia
+  const single = () => !CONFIG.bretagneEnabled;
+  const question = () => single() ? t("singleQuestion") : (state.phase === "poll" ? t("choiceQuestionPoll") : t("choiceQuestionRsvp"));
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   // ---------- static texts (header, program) ----------
@@ -52,6 +55,10 @@
     document.getElementById("lang-en").classList.toggle("active", state.lang === "en");
     const hero = document.getElementById("hero-photo");
     if (hero) { if (CONFIG.heroPhoto) { hero.src = CONFIG.heroPhoto; hero.hidden = false; } else hero.hidden = true; }
+    const bCard = document.getElementById("ev-bretagne-card");
+    if (bCard) { bCard.hidden = single(); }
+    const grid = document.getElementById("program-grid");
+    if (grid) { grid.className = single() ? "grid gap-4 max-w-2xl mx-auto" : "grid sm:grid-cols-2 gap-4"; }
     renderTunisieCta();
   }
 
@@ -60,7 +67,7 @@
   function renderTunisieCta() {
     const link = document.getElementById("cta-link");
     if (!link) return;
-    const invited = state.guest && (state.guest.vip || state.guest.invitTunisie);
+    const invited = state.guest && (single() || state.guest.vip || state.guest.invitTunisie);
     if (!invited || !CONFIG.tunisiePageUrl) { link.hidden = true; return; }
     link.textContent = t("tunisieCtaBtn");
     link.href = CONFIG.tunisiePageUrl;
@@ -97,6 +104,7 @@
     if (site.coupleNames) CONFIG.coupleNames = site.coupleNames;
     if (site.heroPhoto) CONFIG.heroPhoto = site.heroPhoto;
     if (site.tunisiePageUrl) CONFIG.tunisiePageUrl = site.tunisiePageUrl;
+    if (typeof site.bretagneEnabled === "boolean") CONFIG.bretagneEnabled = site.bretagneEnabled;
     // note/rules message is authoritative from the Sheet (empty = hidden)
     if (site.rules) ["fr", "en"].forEach(l => { CONFIG.texts[l].rules = site.rules[l] || ""; });
     ["bretagne", "tunis"].forEach(k => {
@@ -132,7 +140,7 @@
 
     if (state.step === 6) { renderSuccess(); return; }
 
-    const banner = state.phase === "poll" ? t("pollBanner") : t("rsvpBanner");
+    const banner = state.phase === "poll" ? (single() ? t("pollBannerSingle") : t("pollBanner")) : t("rsvpBanner");
     let html = `
       <p class="text-lg">${esc(t("hello"))} <strong>${esc(state.guest.name)}</strong> 👋</p>
       <p class="text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 my-4">${esc(banner)}</p>`;
@@ -166,7 +174,7 @@
     const answered = state.existing ? `<div class="text-sm bg-stone-100 rounded-lg p-3 mb-4">
       <p class="font-medium mb-1">${esc(t("alreadyAnswered"))}</p><p>${esc(summaryOf(state.existing))}</p></div>` : "";
     return `${answered}<button id="start" class="w-full px-4 py-3 rounded-lg bg-stone-800 text-white text-lg">
-      ${esc(state.existing ? t("update") : (state.phase === "poll" ? t("choiceQuestionPoll") : t("choiceQuestionRsvp")))}</button>`;
+      ${esc(state.existing ? t("update") : question())}</button>`;
   }
 
   function stepBasics() {
@@ -260,7 +268,12 @@
   function stepChoice() {
     const a = state.answers;
     let body;
-    if (state.guest.vip) {
+    if (single()) {
+      const labels = { yes: t("vipYes"), no: t("vipNo") };
+      body = `<div class="mb-2"><p class="font-medium mb-2">${esc(evLabel("tunis"))} ${placesBadge("tunis")}</p><div class="flex gap-2">
+        ${["yes", "no"].map(v => `<button class="btn-choice px-4 py-2 rounded-lg border border-stone-300 ${a.tunisia === v ? "selected" : ""}"
+          data-set="tunisia:${v}">${esc(labels[v])}</button>`).join("")}</div></div>`;
+    } else if (state.guest.vip) {
       const labels = { yes: t("vipYes"), no: t("vipNo") };
       const yn = (field) => ["yes", "no"].map(v => `
         <button class="btn-choice px-4 py-2 rounded-lg border border-stone-300 ${a[field] === v ? "selected" : ""}"
@@ -276,7 +289,7 @@
               ${opt("tunis", evLabel("tunis"), placesBadge("tunis"))}
               ${opt("decline", t("choiceDecline"))}`;
     }
-    return `<h3 class="text-lg font-semibold mb-3">${esc(state.phase === "poll" ? t("choiceQuestionPoll") : t("choiceQuestionRsvp"))}</h3>
+    return `<h3 class="text-lg font-semibold mb-3">${esc(question())}</h3>
       ${body}<p id="f-err" class="text-sm text-red-600 mt-2 hidden"></p>${navButtons(2)}`;
   }
 
@@ -390,7 +403,8 @@
       return go(3);
     }
     if (state.step === 3) {
-      if (state.guest.vip) { if (!a.bretagne || !a.tunisia) return err(t("required")); }
+      if (single()) { if (!a.tunisia) return err(t("required")); }
+      else if (state.guest.vip) { if (!a.bretagne || !a.tunisia) return err(t("required")); }
       else if (!a._single) return err(t("required"));
       return go(a.tunisia === "yes" ? 4 : 5);
     }
@@ -408,7 +422,7 @@
       plusOneName: a.plusOne ? a.plusOneName : "", plusOneEmail: a.plusOne ? a.plusOneEmail : "",
       city: a.city, country: a.country,
       lat: a.cityPick ? a.cityPick.lat : "", lng: a.cityPick ? a.cityPick.lng : "",
-      bretagne: a.bretagne || "no", tunisia: a.tunisia || "no",
+      bretagne: single() ? "" : (a.bretagne || "no"), tunisia: a.tunisia || "no",
       earlyArrival: a.tunisia === "yes" ? a.earlyArrival : "",
       soiree: a.tunisia === "yes" ? a.soiree : "",
       note: a.note

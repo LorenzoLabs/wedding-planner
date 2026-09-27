@@ -1,6 +1,6 @@
 /**
  * Wedding Planner — Google Apps Script backend.
- * CODE VERSION: 2026-09-18-c  (bump this line whenever you paste new code)
+ * CODE VERSION: 2026-09-27-a  (bump this line whenever you paste new code)
  *
  * Paste this into a script bound to your Google Sheet (Extensions → Apps Script),
  * run setupSheet() once, then Deploy → New deployment → Web app,
@@ -17,7 +17,7 @@
  * public repo: fill the site_* keys in the Config tab (see SETUP.md).
  */
 
-var VERSION = "2026-09-18-c";
+var VERSION = "2026-09-27-a";
 
 // Columns are read BY POSITION (A, B, C… in this order), not by the header text
 // in row 1. So this list must match the physical column order of the Guests tab.
@@ -375,6 +375,9 @@ function doGet(e) {
           }
         },
         tunisDays: { fr: days(cfg.tunis_days_fr), en: days(cfg.tunis_days_en) },
+        // Config bretagne_enabled = FALSE hides the first wedding everywhere
+        // (program card + choice); the data and texts stay in the Sheet.
+        bretagneEnabled: String(cfg.bretagne_enabled).toUpperCase() !== "FALSE",
         rules: { fr: cfg.rules_fr || "", en: cfg.rules_en || "" },
         tunisiePageUrl: cfg.tunisie_page_url || "",
         // Timeline: prefer the dedicated "Timeline" tab; fall back to the
@@ -392,6 +395,7 @@ function doGet(e) {
       ok: true,
       phase: cfg.phase,
       capacities: { bretagne: Number(cfg.capacity_bretagne), tunis: Number(cfg.capacity_tunis) },
+      bretagneEnabled: String(cfg.bretagne_enabled).toUpperCase() !== "FALSE",
       guests: tabAsObjects("Guests", GUEST_HEADERS),
       responses: tabAsObjects("Responses", RESP_HEADERS)
     });
@@ -441,7 +445,8 @@ function doPost(e) {
   var isVip = guest.vip === true || String(guest.vip).toUpperCase() === "TRUE";
 
   var yn = function (v) { return v === "yes" ? "yes" : "no"; };
-  var bretagne = yn(body.bretagne), tunisia = yn(body.tunisia);
+  // "" for an event that was hidden when the guest answered (not asked ≠ no)
+  var bretagne = body.bretagne === "" ? "" : yn(body.bretagne), tunisia = yn(body.tunisia);
   if (!isVip && bretagne === "yes" && tunisia === "yes") return json({ ok: false, error: "not_vip" });
 
   // Base party size comes from the sheet ("places", e.g. 2 for a couple); an

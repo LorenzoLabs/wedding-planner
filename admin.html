@@ -123,8 +123,8 @@
 
       out.innerHTML = `
         ${filterBar}
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          ${card("Bretagne", `${seats.bretagne} / ${data.capacities.bretagne}`, "personnes / capacité")}
+        <div class="grid grid-cols-2 ${data.bretagneEnabled === false ? "sm:grid-cols-3" : "sm:grid-cols-4"} gap-3 mb-6">
+          ${data.bretagneEnabled === false ? "" : card("Bretagne", `${seats.bretagne} / ${data.capacities.bretagne}`, "personnes / capacité")}
           ${card("Tunisie", `${seats.tunis} / ${data.capacities.tunis}`, "personnes / capacité")}
           ${card("Réponses", `${resp.length} / ${guests.length}`, "invitations répondues")}
           ${card("Sans réponse", noAnswer.length)}

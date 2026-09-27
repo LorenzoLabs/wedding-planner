@@ -45,6 +45,10 @@ const CONFIG = {
   // key `tunisie_page_url` in the Sheet. Shown only to Tunisia-invited guests.
   tunisiePageUrl: "",
 
+  // Set the Config key `bretagne_enabled` to FALSE in the Sheet to hide the
+  // first wedding for now (program card + choice); TRUE or empty shows it.
+  bretagneEnabled: true,
+
   // All user-facing texts, FR + EN.
   texts: {
     fr: {
@@ -66,6 +70,8 @@ const CONFIG = {
       loading: "Chargement…",
       hello: "Bonjour",
       pollBanner: "Première étape : dites-nous où vous iriez. Ce n'est pas encore la réponse définitive — elle nous aide à réserver.",
+      pollBannerSingle: "Dites-nous si vous serez là. Vous pourrez modifier votre réponse à tout moment.",
+      singleQuestion: "Serez-vous des nôtres en Tunisie ?",
       rsvpBanner: "C'est la vraie réponse cette fois : elle est définitive 24 h après envoi.",
       step2Title: "",
       seatsInfo: "Cette invitation est pour {n} personnes.",
@@ -131,6 +137,8 @@ const CONFIG = {
       loading: "Loading…",
       hello: "Hello",
       pollBanner: "First step: tell us where you would go. Not binding yet — it helps us book.",
+      pollBannerSingle: "Tell us if you'll be there. You can change your answer at any time.",
+      singleQuestion: "Will you join us in Tunisia?",
       rsvpBanner: "This is the real answer: it becomes final 24h after you send it.",
       step2Title: "",
       seatsInfo: "This invitation is for {n} people.",

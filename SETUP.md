@@ -16,6 +16,9 @@ through a free Google Apps Script acting as the API. No server, no cost.
    `rsvp` when answers become final.
 6. **Personal texts live here, not in the repo** (the repo is public). Add these
    key/value rows to Config — the site fetches them at runtime:
+   - `bretagne_enabled` = FALSE hides the first wedding (program card and
+     choice) while you only invite to the second one; delete the row or set
+     TRUE to bring it back. Nothing is lost meanwhile.
    - `couple_names` — e.g. "Marie & Karim"
    - `bretagne_date_fr`, `bretagne_date_en` — e.g. "1er août 2030" / "August 1, 2030"
    - `bretagne_place_fr`, `bretagne_place_en`
