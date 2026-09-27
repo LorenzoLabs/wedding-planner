@@ -59,7 +59,7 @@ const CONFIG = {
       bretagneDesc: "Cérémonie et fête.",
       tunisTitle: "Tunisie",
       tunisDesc: "Les traditions d'abord, puis le mariage.",
-      tunisieCtaBtn: "Voir la présentation du mariage tunisien",
+      tunisieCtaBtn: "Cliquez pour voir la présentation",
       tunisDays: [
         "Journées traditionnelles (détails selon votre invitation)",
         "Dernier jour : le mariage"
@@ -126,7 +126,7 @@ const CONFIG = {
       bretagneDesc: "Ceremony and party.",
       tunisTitle: "Tunisia",
       tunisDesc: "Traditions first, then the wedding.",
-      tunisieCtaBtn: "See the Tunisian wedding presentation",
+      tunisieCtaBtn: "Click to see the presentation",
       tunisDays: [
         "Traditional days (details depend on your invitation)",
         "Last day: the wedding"
