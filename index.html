@@ -43,7 +43,7 @@
     body.site-pending .event-title, body.site-pending .event-place { opacity: 0; }
     /* first visit: keep the program cards out of sight until the real config lands
        (avoids a flash of placeholder venues); returning visitors have it cached */
-    body.site-pending #program-grid { visibility: hidden; }
+    body.site-pending #program { display: none; }
     /* Tailwind's display utilities beat the hidden attribute: force it */
     #rsvp [hidden], #cta-link[hidden], .place-link[hidden] { display: none !important; }
     .ornament svg { display: inline-block; margin: 0 -14px; }
@@ -157,7 +157,7 @@
     </header>
 
     <!-- program -->
-    <section class="mb-8">
+    <section id="program" class="mb-8">
       <h2 id="t-programTitle" class="serif text-center text-2xl font-semibold mb-5"></h2>
       <div id="program-grid" class="grid sm:grid-cols-2 gap-4">
         <div id="ev-bretagne-card" class="card-soft p-6">
@@ -190,7 +190,7 @@
 
   <!-- bump ?v= when config.js/app.js change, so browsers don't pair a fresh
        index.html with a cached old script -->
-  <script src="config.js?v=20260928a"></script>
-  <script src="app.js?v=20260928a"></script>
+  <script src="config.js?v=20260928b"></script>
+  <script src="app.js?v=20260928b"></script>
 </body>
 </html>
