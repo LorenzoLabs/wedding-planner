@@ -41,9 +41,10 @@ const CONFIG = {
   // Config key `hero_photo` in the Sheet (a Google Drive share link).
   heroPhoto: "",
 
-  // Link to the Tunisia presentation page (e.g. a Canva site). Set the Config
-  // key `tunisie_page_url` in the Sheet. Shown only to Tunisia-invited guests.
-  tunisiePageUrl: "",
+  // Link to the Tunisia presentation page (e.g. a Canva site). Also settable
+  // via the Config key `tunisie_page_url`; a value here shows the button at
+  // once instead of after the API call. Public page, nothing private in it.
+  tunisiePageUrl: "https://wafalorenzowedding.my.canva.site/",
 
   // Set the Config key `bretagne_enabled` to FALSE in the Sheet to hide the
   // first wedding for now (program card + choice); TRUE or empty shows it.

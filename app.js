@@ -68,7 +68,7 @@
   function renderTunisieCta() {
     const link = document.getElementById("cta-link");
     if (!link) return;
-    const invited = state.guest && (single() || state.guest.vip || state.guest.invitTunisie);
+    const invited = single() || (state.guest && (state.guest.vip || state.guest.invitTunisie));
     if (!invited || !CONFIG.tunisiePageUrl) { link.hidden = true; return; }
     link.textContent = t("tunisieCtaBtn");
     link.href = CONFIG.tunisiePageUrl;
@@ -529,7 +529,7 @@
     // the placeholder names/dates until the fetch lands (4s fallback).
     let siteLoaded = !CONFIG.gasUrl;
     try {
-      const cached = localStorage.getItem("siteCfg");
+      const cached = localStorage.getItem("siteCfg2");
       if (cached) { applySite(JSON.parse(cached)); siteLoaded = true; }
     } catch (e) { /* storage unavailable */ }
     document.body.classList.toggle("site-pending", !siteLoaded);
@@ -538,7 +538,7 @@
     setTimeout(reveal, 4000);
     apiSite().then(site => {
       applySite(site);
-      try { if (site) localStorage.setItem("siteCfg", JSON.stringify(site)); } catch (e) {}
+      try { if (site) localStorage.setItem("siteCfg2", JSON.stringify(site)); } catch (e) {}
       reveal();
       renderStatic();
       if (state.step === 1 || !token) render();
