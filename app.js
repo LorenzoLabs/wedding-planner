@@ -27,9 +27,10 @@
     const d = CONFIG.events[k].dateLabel[state.lang];
     return (k === "bretagne" ? t("choiceBretagne") : t("choiceTunis")) + (d ? " — " + d : "");
   };
-  // single-venue mode (Bretagne hidden): one yes/no question about Tunisia
-  const single = () => !CONFIG.bretagneEnabled;
-  const question = () => single() ? t("singleQuestion") : (state.phase === "poll" ? t("choiceQuestionPoll") : t("choiceQuestionRsvp"));
+  // single-venue mode: one yes/no question about Tunisia. Bretagne shows only
+  // when it is enabled in the Sheet AND the guest is VIP (invited to both).
+  const single = () => !CONFIG.bretagneEnabled || !(state.guest && state.guest.vip);
+  const question = () => single() ? t("singleQuestion") : t("bothQuestion");
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   // ---------- static texts (header, program) ----------
@@ -142,7 +143,7 @@
 
     if (state.step === 6) { renderSuccess(); return; }
 
-    const banner = state.phase === "poll" ? (single() ? t("pollBannerSingle") : t("pollBanner")) : t("rsvpBanner");
+    const banner = state.phase === "poll" ? t("pollBannerSingle") : t("rsvpBanner");
     let html = `
       <p class="text-lg">${esc(t("hello"))} <strong>${esc(state.guest.name)}</strong> 👋</p>
       <p class="text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 my-4">${esc(banner)}</p>`;
@@ -556,6 +557,7 @@
       // per-guest language from the sheet, unless the visitor already chose one
       if (res.guest.lang && !localStorage.getItem("lang")) { state.lang = res.guest.lang; renderStatic(); }
       state.guest = res.guest; state.phase = res.phase;
+      renderStatic(); // the Bretagne card depends on the guest (VIP)
       state.placesLeft = res.placesLeft; state.existing = res.response; state.editable = res.editable;
       if (res.response) { prefill(res.response); state.editableUntil = res.response.editableUntil; }
       state.step = 1; render();
